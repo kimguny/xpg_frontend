@@ -36,8 +36,7 @@ interface MenuItem {
 export default function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
-  const [openMenus, setOpenMenus] = useState<{ [key: string]: boolean }>({});
-
+  
   const menuItems: MenuItem[] = [
     {
       name: 'HOME',
@@ -68,6 +67,11 @@ export default function Sidebar() {
       icon: <People />
     }
   ];
+
+  const [openMenus, setOpenMenus] = useState<{ [key: string]: boolean }>({
+    '콘텐츠': pathname.startsWith('/save/content'),
+    'NFC': pathname.startsWith('/save/nfc'),
+  });
 
   const handleMenuClick = (item: MenuItem) => {
     if (item.subItems) {
@@ -174,7 +178,7 @@ export default function Sidebar() {
                       <ListItemButton
                         key={subItem.name}
                         onClick={() => handleSubMenuClick(subItem.path)}
-                        selected={pathname === subItem.path}
+                        selected={pathname.replace(/\/$/, '') === subItem.path}
                         sx={{
                           pl: 6,
                           py: 1,
@@ -182,11 +186,12 @@ export default function Sidebar() {
                           ml: 2,
                           mb: 0.5,
                           '&.Mui-selected': {
-                            bgcolor: 'primary.light',
-                            color: 'primary.main',
+                            bgcolor: 'grey.200',
+                            color: 'text.primary',
                             fontWeight: 600,
+                            py: 0.75,
                             '&:hover': {
-                              bgcolor: 'primary.light'
+                              bgcolor: '#eeeeee'
                             }
                           },
                           '&:hover': {
@@ -199,7 +204,7 @@ export default function Sidebar() {
                           primary={subItem.name}
                           primaryTypographyProps={{
                             fontSize: '0.875rem',
-                            fontWeight: pathname === subItem.path ? 600 : 400
+                            fontWeight: pathname.replace(/\/$/, '') === subItem.path ? 600 : 400
                           }}
                         />
                       </ListItemButton>
