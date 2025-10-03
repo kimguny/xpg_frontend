@@ -1,5 +1,7 @@
 // src/components/dashboard/DashboardContent.tsx
-import React from 'react';
+'use client';
+
+import { useRouter } from 'next/navigation';
 import {
   Box,
   Typography,
@@ -14,7 +16,7 @@ import {
   TableRow,
   Chip,
 } from '@mui/material';
-import { Menu as MenuIcon } from '@mui/icons-material';
+import { Menu as MenuIcon, Refresh } from '@mui/icons-material';
 
 interface StatCard {
   title: string;
@@ -28,7 +30,13 @@ interface ActionCard {
   title: string;
 }
 
-const DashboardContent: React.FC = () => {
+export default function DashboardContent() {
+  const router = useRouter();
+
+  const handleRefresh = () => {
+    router.refresh();
+  };
+
   const statCards: StatCard[] = [
     {
       title: '전체 회원 수',
@@ -57,26 +65,54 @@ const DashboardContent: React.FC = () => {
   ];
 
   return (
-    <Box className="p-6 bg-gray-50 min-h-screen">
+    <Box>
       {/* 헤더 섹션 */}
-      <Box className="mb-6 flex items-center">
-        <Box className="bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm mr-3">
-          1
+      <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Box sx={{
+            bgcolor: 'error.main',
+            color: 'white',
+            borderRadius: '50%',
+            width: 24,
+            height: 24,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '0.875rem',
+            mr: 1.5
+          }}>
+            1
+          </Box>
+          <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
+            HOME 대시보드
+          </Typography>
         </Box>
-        <Typography variant="h5" className="font-bold text-gray-800">
-          HOME 대시보드
-        </Typography>
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<Refresh />}
+          onClick={handleRefresh}
+          sx={{ 
+            textTransform: 'none',
+            bgcolor: 'white',
+            '&:hover': {
+              bgcolor: 'grey.50'
+            }
+          }}
+        >
+          새로 고침
+        </Button>
       </Box>
 
       {/* 통계 카드 섹션 */}
-      <Box className="flex flex-wrap gap-6 mb-6">
+      <Box sx={{ display: 'flex', gap: 3, mb: 3 }}>
         {statCards.map((card, index) => (
-          <Card key={index} className="flex-1 min-w-80 shadow-sm">
-            <CardContent className="text-center p-6">
-              <Typography variant="h6" className="mb-4 text-gray-700">
+          <Card key={index} sx={{ flex: 1, boxShadow: 1 }}>
+            <CardContent sx={{ textAlign: 'center', py: 4 }}>
+              <Typography variant="h6" sx={{ mb: 2, color: 'text.secondary' }}>
                 {card.title}
               </Typography>
-              <Typography variant="h3" className="font-bold mb-3 text-gray-900">
+              <Typography variant="h3" sx={{ fontWeight: 'bold', mb: 1.5 }}>
                 {card.value}
               </Typography>
               <Typography variant="body2" className={card.subtitleColor}>
@@ -88,40 +124,74 @@ const DashboardContent: React.FC = () => {
       </Box>
 
       {/* 액션 카드 섹션 */}
-      <Box className="flex flex-wrap gap-6 mb-8">
+      <Box sx={{ display: 'flex', gap: 3, mb: 4 }}>
         {actionCards.map((card, index) => (
           <Card 
             key={index} 
-            className="flex-1 min-w-80 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+            sx={{ 
+              flex: 1,
+              boxShadow: 1,
+              cursor: 'pointer',
+              '&:hover': { boxShadow: 3 },
+              transition: 'box-shadow 0.3s'
+            }}
           >
-            <CardContent className="text-center p-6">
-              <Box className="bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm mx-auto mb-4">
+            <CardContent sx={{ textAlign: 'center', py: 4 }}>
+              <Box sx={{ 
+                bgcolor: 'error.main', 
+                color: 'white', 
+                borderRadius: '50%', 
+                width: 32, 
+                height: 32, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                mx: 'auto',
+                mb: 2,
+                fontSize: '0.875rem'
+              }}>
                 {card.number}
               </Box>
-              <Typography variant="h6" className="text-gray-700">
-                {card.title}
-              </Typography>
+              <Typography variant="h6">{card.title}</Typography>
             </CardContent>
           </Card>
         ))}
       </Box>
 
       {/* 진행중인 콘텐츠 테이블 */}
-      <Card className="shadow-sm">
-        <CardContent className="p-0">
+      <Card sx={{ boxShadow: 1 }}>
+        <CardContent sx={{ p: 0 }}>
           {/* 테이블 헤더 */}
-          <Box className="p-4 border-b border-gray-200 flex justify-between items-center">
-            <Typography variant="h6" className="font-bold text-gray-800">
+          <Box sx={{ 
+            p: 2, 
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center' 
+          }}>
+            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
               진행중인 콘텐츠(01)
             </Typography>
-            <Box className="flex items-center">
-              <Box className="bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm mr-3">
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Box sx={{
+                bgcolor: 'error.main',
+                color: 'white',
+                borderRadius: '50%',
+                width: 24,
+                height: 24,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '0.875rem',
+                mr: 1.5
+              }}>
                 4
               </Box>
               <Button 
                 variant="text" 
-                className="text-gray-600"
                 startIcon={<MenuIcon />}
+                sx={{ textTransform: 'none' }}
               >
                 최신 등록순
               </Button>
@@ -132,55 +202,116 @@ const DashboardContent: React.FC = () => {
           <TableContainer>
             <Table>
               <TableHead>
-                <TableRow className="bg-gray-50">
-                  <TableCell className="font-semibold">콘텐츠 명</TableCell>
-                  <TableCell className="font-semibold">상태</TableCell>
-                  <TableCell className="font-semibold">이벤트 기간</TableCell>
-                  <TableCell className="font-semibold">참여인원</TableCell>
-                  <TableCell className="font-semibold">콘텐츠 관리</TableCell>
-                  <TableCell className="font-semibold">진행 관리</TableCell>
+                <TableRow sx={{ bgcolor: 'grey.50' }}>
+                  <TableCell sx={{ fontWeight: 600 }}>콘텐츠 명</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>상태</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>이벤트 기간</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>참여인원</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>콘텐츠 관리</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>진행 관리</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                <TableRow className="hover:bg-gray-50">
+                <TableRow sx={{ '&:hover': { bgcolor: 'grey.50' } }}>
                   <TableCell>목포의 눈물</TableCell>
                   <TableCell>
-                    <Box className="flex items-center">
-                      <Box className="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm mr-3">
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Box sx={{
+                        bgcolor: 'success.main',
+                        color: 'white',
+                        borderRadius: '50%',
+                        width: 24,
+                        height: 24,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.875rem',
+                        mr: 1.5
+                      }}>
                         5
                       </Box>
                       <Chip 
                         label="진행 중" 
                         size="small"
-                        className="bg-green-100 text-green-800"
+                        sx={{ 
+                          bgcolor: 'success.light',
+                          color: 'success.dark'
+                        }}
                       />
                     </Box>
                   </TableCell>
                   <TableCell>2025/09/11~2025/09/13</TableCell>
                   <TableCell>
-                    <Box className="flex items-center">
-                      <Box className="bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm mr-3">
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Box sx={{
+                        bgcolor: 'error.main',
+                        color: 'white',
+                        borderRadius: '50%',
+                        width: 24,
+                        height: 24,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.875rem',
+                        mr: 1.5
+                      }}>
                         6
                       </Box>
                       30
                     </Box>
                   </TableCell>
                   <TableCell>
-                    <Box className="flex items-center">
-                      <Box className="bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm mr-3">
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Box sx={{
+                        bgcolor: 'error.main',
+                        color: 'white',
+                        borderRadius: '50%',
+                        width: 24,
+                        height: 24,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.875rem',
+                        mr: 1.5
+                      }}>
                         2
                       </Box>
-                      <Button variant="text" size="small" className="text-blue-600">
+                      <Button 
+                        variant="text" 
+                        size="small" 
+                        sx={{ 
+                          textTransform: 'none',
+                          color: 'primary.main'
+                        }}
+                      >
                         메뉴 / 세팅
                       </Button>
                     </Box>
                   </TableCell>
                   <TableCell>
-                    <Box className="flex items-center">
-                      <Box className="bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm mr-3">
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Box sx={{
+                        bgcolor: 'error.main',
+                        color: 'white',
+                        borderRadius: '50%',
+                        width: 24,
+                        height: 24,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.875rem',
+                        mr: 1.5
+                      }}>
                         3
                       </Box>
-                      <Button variant="text" size="small" className="text-green-600">
+                      <Button 
+                        variant="text" 
+                        size="small" 
+                        sx={{ 
+                          textTransform: 'none',
+                          color: 'success.main'
+                        }}
+                      >
                         종료 시작 삭제
                       </Button>
                     </Box>
@@ -193,6 +324,4 @@ const DashboardContent: React.FC = () => {
       </Card>
     </Box>
   );
-};
-
-export default DashboardContent;
+}
