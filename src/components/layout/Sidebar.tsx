@@ -1,64 +1,216 @@
 // src/components/layout/Sidebar.tsx
-import React from 'react';
-import { Box, Typography, Button } from '@mui/material';
+'use client';
+
+import { useState } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
+import {
+  Drawer,
+  List,
+  ListItemButton,
+  ListItemText,
+  Collapse,
+  Box,
+  Typography,
+} from '@mui/material';
+import {
+  ExpandLess,
+  ExpandMore,
+  Home,
+  Article,
+  Nfc,
+  People,
+} from '@mui/icons-material';
+
+interface SubMenuItem {
+  name: string;
+  path: string;
+}
 
 interface MenuItem {
   name: string;
-  active: boolean;
+  path: string;
+  icon: React.ReactNode;
+  subItems?: SubMenuItem[];
 }
 
-const Sidebar: React.FC = () => {
+export default function Sidebar() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [openMenus, setOpenMenus] = useState<{ [key: string]: boolean }>({});
+
   const menuItems: MenuItem[] = [
-    { name: 'HOME', active: true },
-    { name: '콘텐츠', active: false },
-    { name: 'NFC', active: false },
-    { name: '회원 관리', active: false }
+    {
+      name: 'HOME',
+      path: '/save/dashboard',
+      icon: <Home />
+    },
+    {
+      name: '콘텐츠',
+      path: '/save/content',
+      icon: <Article />,
+      subItems: [
+        { name: '콘텐츠 등록', path: '/save/content/register' },
+        { name: '콘텐츠 관리', path: '/save/content/manage' }
+      ]
+    },
+    {
+      name: 'NFC',
+      path: '/save/nfc',
+      icon: <Nfc />,
+      subItems: [
+        { name: 'NFC 관리', path: '/save/nfc/manage' },
+        { name: 'NFC 등록', path: '/save/nfc/register' }
+      ]
+    },
+    {
+      name: '회원 관리',
+      path: '/save/members',
+      icon: <People />
+    }
   ];
 
+  const handleMenuClick = (item: MenuItem) => {
+    if (item.subItems) {
+      setOpenMenus(prev => ({
+        ...prev,
+        [item.name]: !prev[item.name]
+      }));
+    } else {
+      router.push(item.path);
+    }
+  };
+
+  const handleSubMenuClick = (path: string) => {
+    router.push(path);
+  };
+
   return (
-    <Box className="bg-gray-100 w-52 min-h-screen flex flex-col p-4">
-      {/* Logo Section */}
-      <Box className="mb-8 text-center">
-        <Box className="w-12 h-12 bg-black mx-auto mb-2 flex items-center justify-center rounded">
-          <Typography variant="h6" className="text-white font-bold">
-            ✕
+    <Drawer
+      variant="permanent"
+      sx={{
+        width: 240,
+        flexShrink: 0,
+        '& .MuiDrawer-paper': {
+          width: 240,
+          boxSizing: 'border-box',
+          bgcolor: '#ffffff',
+          borderRight: 'none',
+          position: 'relative',
+          height: '100%'
+        }
+      }}
+    >
+      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', p: 2 }}>
+        {/* Logo Section */}
+        <Box sx={{ textAlign: 'center', mb: 4, mt: 2 }}>
+          <Box
+            sx={{
+              width: 56,
+              height: 56,
+              bgcolor: 'black',
+              mx: 'auto',
+              mb: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: 2
+            }}
+          >
+            <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold' }}>
+              ✕
+            </Typography>
+          </Box>
+          <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+            X-Play.G
           </Typography>
         </Box>
-        <Typography variant="body2" className="font-semibold text-gray-800">
-          X-Play.G
-        </Typography>
-      </Box>
-      
-      {/* Menu Items */}
-      <Box className="flex flex-col space-y-2 mb-8">
-        {menuItems.map((item, index) => (
-          <Button
-            key={index}
-            fullWidth
-            variant={item.active ? "contained" : "text"}
-            className={`justify-start text-left py-2 ${
-              item.active 
-                ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm' 
-                : 'text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            {item.name}
-          </Button>
-        ))}
-      </Box>
-      
-      {/* Refresh Button */}
-      <Box className="mt-auto">
-        <Button
-          variant="outlined"
-          fullWidth
-          className="border-gray-400 text-gray-700 hover:bg-gray-50"
-        >
-          새로 고침
-        </Button>
-      </Box>
-    </Box>
-  );
-};
 
-export default Sidebar;
+        {/* Menu Items */}
+        <List component="nav" sx={{ flexGrow: 1 }}>
+          {menuItems.map((item) => (
+            <Box key={item.name}>
+              <ListItemButton
+                onClick={() => handleMenuClick(item)}
+                selected={pathname === item.path || pathname.startsWith(item.path + '/')}
+                sx={{
+                  borderRadius: 2,
+                  mb: 0.5,
+                  '&.Mui-selected': {
+                    bgcolor: 'primary.main',
+                    color: 'white',
+                    '&:hover': {
+                      bgcolor: 'primary.dark'
+                    },
+                    '& .MuiSvgIcon-root': {
+                      color: 'white'
+                    }
+                  },
+                  '&:hover': {
+                    bgcolor: 'grey.200',
+                    borderRadius: 2
+                  }
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
+                  {item.icon}
+                  <ListItemText 
+                    primary={item.name}
+                    primaryTypographyProps={{
+                      fontSize: '0.95rem',
+                      fontWeight: pathname === item.path || pathname.startsWith(item.path + '/') ? 600 : 400
+                    }}
+                  />
+                  {item.subItems && (
+                    openMenus[item.name] ? <ExpandLess /> : <ExpandMore />
+                  )}
+                </Box>
+              </ListItemButton>
+
+              {/* Sub Menu Items */}
+              {item.subItems && (
+                <Collapse in={openMenus[item.name]} timeout="auto" unmountOnExit>
+                  <List component="div" disablePadding>
+                    {item.subItems.map((subItem) => (
+                      <ListItemButton
+                        key={subItem.name}
+                        onClick={() => handleSubMenuClick(subItem.path)}
+                        selected={pathname === subItem.path}
+                        sx={{
+                          pl: 6,
+                          py: 1,
+                          borderRadius: 2,
+                          ml: 2,
+                          mb: 0.5,
+                          '&.Mui-selected': {
+                            bgcolor: 'primary.light',
+                            color: 'primary.main',
+                            fontWeight: 600,
+                            '&:hover': {
+                              bgcolor: 'primary.light'
+                            }
+                          },
+                          '&:hover': {
+                            bgcolor: 'grey.200',
+                            borderRadius: 2
+                          }
+                        }}
+                      >
+                        <ListItemText
+                          primary={subItem.name}
+                          primaryTypographyProps={{
+                            fontSize: '0.875rem',
+                            fontWeight: pathname === subItem.path ? 600 : 400
+                          }}
+                        />
+                      </ListItemButton>
+                    ))}
+                  </List>
+                </Collapse>
+              )}
+            </Box>
+          ))}
+        </List>
+      </Box>
+    </Drawer>
+  );
+}
