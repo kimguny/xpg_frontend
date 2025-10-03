@@ -47,7 +47,7 @@ export default function LoginPage() {
       });
       
       // 대시보드로 리다이렉트
-      router.push('/dashboard');
+      router.push('/save/dashboard');
       
     } catch (err) {
       setError('로그인에 실패했습니다. 아이디와 비밀번호를 확인해주세요.');
