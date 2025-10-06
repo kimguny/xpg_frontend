@@ -14,7 +14,10 @@ interface CookieOptions {
 }
 
 export const setCookie = (name: string, value: string, options?: CookieOptions) => {
-  return cookies.set(name, value, { ...options });
+  // options.httpOnly는 클라이언트 측에서는 설정할 수 없으므로 제거합니다.
+  const clientOptions = { ...options };
+  delete clientOptions.httpOnly;
+  return cookies.set(name, value, { ...clientOptions });
 };
 
 export const getCookie = (name: string) => {
