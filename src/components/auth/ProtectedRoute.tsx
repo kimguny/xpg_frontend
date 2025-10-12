@@ -4,7 +4,6 @@ import { useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useRecoilValue } from 'recoil';
 import { authState } from '@/store/authState'; // authState 전체를 import하여 isAuthenticated와 isLoading 사용
-import { useAuthInitialization } from '@/hooks/useAuthInitialization'; // 초기 인증 확인을 위한 커스텀 훅 (추후 구현 필요)
 
 interface ProtectedRouteProps {
   children: ReactNode;

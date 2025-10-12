@@ -63,7 +63,7 @@ export default function Sidebar() {
     },
     {
       name: '회원 관리',
-      path: '/save/members',
+      path: '/save/users',
       icon: <People />
     }
   ];
