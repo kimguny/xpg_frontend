@@ -1,9 +1,11 @@
 import StageRegisterForm from '@/components/content/StageRegisterForm';
 
-export default function StageEditPage({ 
-  params 
-}: { 
-  params: { contentId: string; stageNo: string } 
-}) {
-  return <StageRegisterForm contentId={params.contentId} stageNo={params.stageNo} mode="edit" />;
+type StageEditPageProps = {
+  params: Promise<{ contentId: string; stageNo: string }>;
+};
+
+export default async function StageEditPage({ params }: StageEditPageProps) {
+  const { contentId, stageNo } = await params;
+
+  return <StageRegisterForm contentId={contentId} stageNo={stageNo} mode="edit" />;
 }
