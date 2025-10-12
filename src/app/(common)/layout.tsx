@@ -1,4 +1,4 @@
-import LayoutComponent from "@/components/layout";
+import LayoutComponent from "@/components/layout/MainLayout";
 import React from "react";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
