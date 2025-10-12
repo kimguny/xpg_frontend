@@ -13,8 +13,6 @@ import {
   RadioGroup,
   FormControlLabel,
   FormControl,
-  Select,
-  MenuItem,
   Tabs,
   Tab,
 } from '@mui/material';
