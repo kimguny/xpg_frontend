@@ -1,4 +1,3 @@
-// src/components/layout/Sidebar.tsx
 'use client';
 
 import { useState } from 'react';
@@ -19,6 +18,9 @@ import {
   Article,
   Nfc,
   People,
+  Celebration,
+  CardGiftcard,
+  Storefront,
 } from '@mui/icons-material';
 
 interface SubMenuItem {
@@ -37,14 +39,20 @@ export default function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
   
+  // <<<<<<<<<<<<<<<<<<< 수정된 부분: 기획서 순서에 맞춰 메뉴 재배치 >>>>>>>>>>>>>>>>>>>>
   const menuItems: MenuItem[] = [
     {
-      name: 'HOME',
+      name: '대시보드',
       path: '/save/dashboard',
       icon: <Home />
     },
     {
-      name: '콘텐츠',
+      name: '이벤트 관리',
+      path: '/save/events', // 페이지 생성 필요
+      icon: <Celebration />
+    },
+    {
+      name: '콘텐츠 관리',
       path: '/save/content',
       icon: <Article />,
       subItems: [
@@ -53,7 +61,21 @@ export default function Sidebar() {
       ]
     },
     {
-      name: 'NFC',
+      name: '리워드 관리',
+      path: '/save/rewards',
+      icon: <CardGiftcard />
+    },
+    {
+      name: '매장 관리',
+      path: '/save/stores',
+      icon: <Storefront />,
+      subItems: [
+        { name: '매장 관리', path: '/save/stores/manage' }, // 페이지 생성 필요
+        { name: '매장 등록', path: '/save/stores/register' }
+      ]
+    },
+    {
+      name: 'NFC 관리',
       path: '/save/nfc',
       icon: <Nfc />,
       subItems: [
@@ -65,13 +87,15 @@ export default function Sidebar() {
       name: '회원 관리',
       path: '/save/users',
       icon: <People />
-    }
+    },
   ];
 
   const [openMenus, setOpenMenus] = useState<{ [key: string]: boolean }>({
-    '콘텐츠': pathname.startsWith('/save/content'),
-    'NFC': pathname.startsWith('/save/nfc'),
+    '콘텐츠 관리': pathname.startsWith('/save/content'),
+    '매장 관리': pathname.startsWith('/save/stores'),
+    'NFC 관리': pathname.startsWith('/save/nfc'),
   });
+  // <<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>
 
   const handleMenuClick = (item: MenuItem) => {
     if (item.subItems) {
@@ -106,24 +130,8 @@ export default function Sidebar() {
     >
       <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', p: 2 }}>
         {/* Logo Section */}
-        <Box sx={{ textAlign: 'center', mb: 4, mt: 2 }}>
-          <Box
-            sx={{
-              width: 56,
-              height: 56,
-              bgcolor: 'black',
-              mx: 'auto',
-              mb: 1,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: 2
-            }}
-          >
-            <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold' }}>
-              ✕
-            </Typography>
-          </Box>
+        <Box sx={{ textAlign: 'center', my: 2 }}>
+          <Typography variant="h5" sx={{ fontWeight: 'bold' }}>✕</Typography>
           <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
             X-Play.G
           </Typography>
@@ -135,24 +143,17 @@ export default function Sidebar() {
             <Box key={item.name}>
               <ListItemButton
                 onClick={() => handleMenuClick(item)}
-                selected={pathname === item.path || pathname.startsWith(item.path + '/')}
+                selected={!item.subItems && pathname.startsWith(item.path)}
                 sx={{
                   borderRadius: 2,
                   mb: 0.5,
                   '&.Mui-selected': {
                     bgcolor: 'primary.main',
                     color: 'white',
-                    '&:hover': {
-                      bgcolor: 'primary.dark'
-                    },
-                    '& .MuiSvgIcon-root': {
-                      color: 'white'
-                    }
+                    '&:hover': { bgcolor: 'primary.dark' },
+                    '& .MuiSvgIcon-root': { color: 'white' }
                   },
-                  '&:hover': {
-                    bgcolor: 'grey.200',
-                    borderRadius: 2
-                  }
+                  '&:hover': { bgcolor: 'grey.200', borderRadius: 2 }
                 }}
               >
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
@@ -161,7 +162,7 @@ export default function Sidebar() {
                     primary={item.name}
                     primaryTypographyProps={{
                       fontSize: '0.95rem',
-                      fontWeight: pathname === item.path || pathname.startsWith(item.path + '/') ? 600 : 400
+                      fontWeight: pathname.startsWith(item.path) ? 600 : 400
                     }}
                   />
                   {item.subItems && (
@@ -178,7 +179,7 @@ export default function Sidebar() {
                       <ListItemButton
                         key={subItem.name}
                         onClick={() => handleSubMenuClick(subItem.path)}
-                        selected={pathname.replace(/\/$/, '') === subItem.path}
+                        selected={pathname === subItem.path}
                         sx={{
                           pl: 6,
                           py: 1,
@@ -187,24 +188,16 @@ export default function Sidebar() {
                           mb: 0.5,
                           '&.Mui-selected': {
                             bgcolor: 'grey.200',
-                            color: 'text.primary',
                             fontWeight: 600,
-                            py: 0.75,
-                            '&:hover': {
-                              bgcolor: '#eeeeee'
-                            }
                           },
-                          '&:hover': {
-                            bgcolor: 'grey.200',
-                            borderRadius: 2
-                          }
+                          '&:hover': { bgcolor: 'grey.200' }
                         }}
                       >
                         <ListItemText
                           primary={subItem.name}
                           primaryTypographyProps={{
                             fontSize: '0.875rem',
-                            fontWeight: pathname.replace(/\/$/, '') === subItem.path ? 600 : 400
+                            fontWeight: pathname === subItem.path ? 600 : 400
                           }}
                         />
                       </ListItemButton>
