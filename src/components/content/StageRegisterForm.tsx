@@ -17,6 +17,10 @@ import {
   Tab,
 } from '@mui/material';
 
+import HintSettingsTab from './tabs/HintSettingsTab';
+import PuzzleSettingsTab from './tabs/PuzzleSettingsTab';
+import UnlockSettingsTab from './tabs/UnlockSettingsTab';
+
 interface StageRegisterFormProps {
   contentId: string;
   stageNo: string;
@@ -104,6 +108,7 @@ export default function StageRegisterForm({ contentId, stageNo, mode }: StageReg
             {/* 기본 정보 탭 */}
             {activeTab === 0 && (
               <Box>
+                {/* ... (기존 기본 정보 UI는 여기에 그대로 유지됩니다) ... */}
                 {/* 스테이지 타이틀 */}
                 <Box sx={{ mb: 3 }}>
                   <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
@@ -287,30 +292,17 @@ export default function StageRegisterForm({ contentId, stageNo, mode }: StageReg
               </Box>
             )}
 
+            {/* <<<<<<<<<<<<<<<<<<< 수정된 부분 2: 컴포넌트 호출 >>>>>>>>>>>>>>>>>>>> */}
             {/* 힌트 설정 탭 */}
-            {activeTab === 1 && (
-              <Box>
-                <Typography variant="h6">힌트 설정</Typography>
-                <Typography color="text.secondary">힌트 설정 기능은 추후 구현 예정</Typography>
-              </Box>
-            )}
+            {activeTab === 1 && <HintSettingsTab />}
 
             {/* 퍼즐 설정 탭 */}
-            {activeTab === 2 && (
-              <Box>
-                <Typography variant="h6">퍼즐 설정</Typography>
-                <Typography color="text.secondary">퍼즐 설정 기능은 추후 구현 예정</Typography>
-              </Box>
-            )}
+            {activeTab === 2 && <PuzzleSettingsTab />}
 
             {/* 해금 설정 탭 */}
-            {activeTab === 3 && (
-              <Box>
-                <Typography variant="h6">해금 설정</Typography>
-                <Typography color="text.secondary">해금 설정 기능은 추후 구현 예정</Typography>
-              </Box>
-            )}
-
+            {activeTab === 3 && <UnlockSettingsTab />}
+            {/* <<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>> */}
+            
             {/* 버튼 */}
             <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', pt: 3, mt: 3, borderTop: '1px solid', borderColor: 'divider' }}>
               <Button

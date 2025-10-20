@@ -16,9 +16,10 @@ import {
   Checkbox,
   Select,
   MenuItem,
+  FormLabel, // FormLabel을 import에 추가합니다.
 } from '@mui/material';
 
-type ContentType = 'story' | 'territory';
+type ContentType = 'story' | 'domination'; // 'territory'를 'domination'으로 수정
 type ProgressMode = 'sequential' | 'non-sequential';
 
 export default function ContentRegisterForm() {
@@ -27,6 +28,7 @@ export default function ContentRegisterForm() {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
+    exposureSlot: 'story', // '노출 위치' 상태 추가
     address: '',
     latitude: '',
     longitude: '',
@@ -59,7 +61,7 @@ export default function ContentRegisterForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Submit:', formData);
+    console.log('Submit:', { contentType, ...formData });
     router.push('/save/content/manage');
   };
 
@@ -77,25 +79,9 @@ export default function ContentRegisterForm() {
           <form onSubmit={handleSubmit}>
             {/* 콘텐츠 유형 */}
             <Box sx={{ mb: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                <Box sx={{
-                  bgcolor: 'error.main',
-                  color: 'white',
-                  borderRadius: '50%',
-                  width: 24,
-                  height: 24,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '0.875rem',
-                  mr: 1.5
-                }}>
-                  1
-                </Box>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                  콘텐츠 유형
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+                  1. 콘텐츠 유형
                 </Typography>
-              </Box>
               <FormControl component="fieldset">
                 <RadioGroup
                   row
@@ -103,7 +89,25 @@ export default function ContentRegisterForm() {
                   onChange={(e) => setContentType(e.target.value as ContentType)}
                 >
                   <FormControlLabel value="story" control={<Radio />} label="스토리형" />
-                  <FormControlLabel value="territory" control={<Radio />} label="점령전" />
+                  <FormControlLabel value="domination" control={<Radio />} label="점령전" />
+                </RadioGroup>
+              </FormControl>
+            </Box>
+
+            {/* 노출 위치 설정 */}
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+                노출 위치
+              </Typography>
+              <FormControl component="fieldset">
+                <RadioGroup
+                  row
+                  name="exposureSlot"
+                  value={formData.exposureSlot}
+                  onChange={(e) => setFormData({ ...formData, exposureSlot: e.target.value })}
+                >
+                  <FormControlLabel value="story" control={<Radio />} label="스토리" />
+                  <FormControlLabel value="event" control={<Radio />} label="이벤트" />
                 </RadioGroup>
               </FormControl>
             </Box>
@@ -143,6 +147,8 @@ export default function ContentRegisterForm() {
               />
             </Box>
 
+            {/* ... (이하 코드는 이전과 동일) ... */}
+            
             {/* 위치 설정 */}
             <Box sx={{ mb: 3 }}>
               <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
@@ -263,7 +269,7 @@ export default function ContentRegisterForm() {
             </Box>
 
             {/* 점령전 전용 - 최대 참여 인원 */}
-            {contentType === 'territory' && (
+            {contentType === 'domination' && (
               <Box sx={{ mb: 3 }}>
                 <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
                   최대 참여 인원
