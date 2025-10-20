@@ -2,114 +2,181 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import {
   Box,
   Typography,
   Card,
-  CardContent,
-  CardMedia,
   Button,
-  Chip,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Avatar,
+  Chip, // Chip을 import에 추가합니다.
+  CardContent,
+  TextField,
+  InputAdornment,
+  Select,
+  MenuItem,
+  FormControl,
 } from '@mui/material';
-import { Add } from '@mui/icons-material';
+import { Add, Search } from '@mui/icons-material';
+import ConfirmDialog from '@/components/common/ConfirmDialog';
+import RewardRegisterModal from './RewardRegisterModal';
 
-// 임시 리워드 데이터 타입
+interface StatCardProps {
+  title: string;
+  value: string;
+}
+
 interface RewardItem {
   id: number;
   imageUrl: string;
   productName: string;
-  storeName: string;
+  category: string;
   points: number;
   totalQty: number;
   remainingQty: number;
 }
 
-// 임시 데이터
-const rewards: RewardItem[] = [
-  {
-    id: 1,
-    imageUrl: 'https://via.placeholder.com/150', // 임시 이미지 URL
-    productName: '목포의 눈물빵',
-    storeName: '코롬방제과',
-    points: 3000,
-    totalQty: 100,
-    remainingQty: 30,
-  },
-  {
-    id: 2,
-    imageUrl: 'https://via.placeholder.com/150',
-    productName: '새우바게트',
-    storeName: '씨엘비베이커리',
-    points: 5000,
-    totalQty: 50,
-    remainingQty: 5,
-  },
-  // 추가 데이터...
+const initialRewards: RewardItem[] = [
+  { id: 1, imageUrl: 'https://via.placeholder.com/40', productName: '목포의 눈물빵', category: '베이커리', points: 3000, totalQty: 100, remainingQty: 30 }, // 정상
+  { id: 2, imageUrl: 'https://via.placeholder.com/40', productName: '새우바게트', category: '베이커리', points: 5000, totalQty: 50, remainingQty: 5 }, // 재고 임박
+  { id: 3, imageUrl: 'https://via.placeholder.com/40', productName: '크림치즈 바게트', category: '베이커리', points: 4500, totalQty: 50, remainingQty: 0 }, // 품절
 ];
 
+const StatCard = ({ title, value }: StatCardProps) => (
+  <Card sx={{ flex: 1, textAlign: 'center' }}>
+    <CardContent>
+      <Typography color="text.secondary">{title}</Typography>
+      <Typography variant="h5" sx={{ fontWeight: 'bold' }}>{value}</Typography>
+    </CardContent>
+  </Card>
+);
+
+// <<<<<<<<<<<<<<<<<<< 수정된 부분 1: 재고 상태 Chip 반환 함수 >>>>>>>>>>>>>>>>>>>>
+const getStatusChip = (remainingQty: number) => {
+  if (remainingQty === 0) {
+    return <Chip label="품절" color="error" size="small" />;
+  }
+  if (remainingQty <= 10) { // 재고 임박 기준을 10개 이하로 설정
+    return <Chip label="임박" color="warning" size="small" />;
+  }
+  return <Chip label="정상" color="success" size="small" />;
+};
+// <<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>
+
 export default function RewardManagementContent() {
-  const router = useRouter();
+  const [rewards, setRewards] = useState(initialRewards);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [selectedRewardId, setSelectedRewardId] = useState<number | null>(null);
+
+  const openDeleteDialog = (id: number) => {
+    setSelectedRewardId(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (selectedRewardId) {
+      setRewards(prev => prev.filter(r => r.id !== selectedRewardId));
+    }
+    setDeleteDialogOpen(false);
+    setSelectedRewardId(null);
+  };
+
+  const openEditModal = (id: number) => {
+    setSelectedRewardId(id);
+    setEditModalOpen(true);
+  };
 
   return (
     <Box>
-      {/* 헤더 */}
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
-          리워드 관리
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button
-            variant="outlined"
-            startIcon={<Add />}
-            onClick={() => console.log('Navigate to store registration')}
-          >
-            매장 등록
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            onClick={() => console.log('Navigate to product registration')}
-          >
-            상품 등록
-          </Button>
-        </Box>
+      <Typography variant="h5" sx={{ fontWeight: 'bold', mb: 2 }}>리워드 관리</Typography>
+
+      {/* 상단 통계 카드 */}
+      <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+        <StatCard title="오늘 교환건수" value="10건" />
+        <StatCard title="누적 교환 건수" value="1,234건" />
+        <StatCard title="총 포인트 차감" value="5,432,100P" />
+        <StatCard title="재고 임박" value="3개" />
       </Box>
 
-      {/* 리워드 카드 목록 */}
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-        {rewards.map((reward) => (
-          <Card key={reward.id} sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(33.33% - 16px)' }, boxShadow: 1 }}>
-            <CardMedia
-              component="img"
-              height="140"
-              image={reward.imageUrl}
-              alt={reward.productName}
-            />
-            <CardContent>
-              <Typography gutterBottom variant="h6" component="div" sx={{ fontWeight: 600 }}>
-                {reward.productName}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                {reward.storeName}
-              </Typography>
-              <Typography variant="body1" sx={{ fontWeight: 'bold', mb: 1 }}>
-                {reward.points.toLocaleString()} P
-              </Typography>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="body2">
-                  수량: {reward.remainingQty} / {reward.totalQty}
-                </Typography>
-                <Chip label="활성" color="success" size="small" />
-              </Box>
-              <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                <Button size="small">수정</Button>
-                <Button size="small" color="error">삭제</Button>
-              </Box>
-            </CardContent>
-          </Card>
-        ))}
+      {/* 필터 및 등록 버튼 */}
+      <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          <Button variant="contained" disableElevation>전체</Button>
+          <FormControl size="small" sx={{ minWidth: 120 }}>
+            <Select defaultValue="all">
+              <MenuItem value="all">카테고리</MenuItem>
+              <MenuItem value="bakery">베이커리</MenuItem>
+            </Select>
+          </FormControl>
+          <TextField
+            size="small"
+            placeholder="검색어"
+            InputProps={{ startAdornment: <InputAdornment position="start"><Search /></InputAdornment> }}
+          />
+        </Box>
+        <Button variant="contained" startIcon={<Add />} onClick={() => setEditModalOpen(true)}>상품 등록</Button>
       </Box>
+
+      {/* 리워드 테이블 */}
+      <Card>
+        <TableContainer component={Paper} sx={{ boxShadow: 0 }}>
+          <Table>
+            <TableHead>
+              <TableRow sx={{ bgcolor: 'grey.50' }}>
+                <TableCell sx={{ fontWeight: 600 }}>이미지</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>리워드명</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>카테고리</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>필요 포인트</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>총 수량</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>잔여 수량</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>상태</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>관리</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {rewards.map((reward) => (
+                <TableRow key={reward.id} sx={{ '&:hover': { bgcolor: 'grey.50' } }}>
+                  <TableCell><Avatar src={reward.imageUrl} variant="rounded" /></TableCell>
+                  <TableCell>{reward.productName}</TableCell>
+                  <TableCell>{reward.category}</TableCell>
+                  <TableCell>{reward.points.toLocaleString()} P</TableCell>
+                  <TableCell>{reward.totalQty}</TableCell>
+                  <TableCell>{reward.remainingQty}</TableCell>
+                  {/* <<<<<<<<<<<<<<<<<<< 수정된 부분 2: 상태 Chip 표시 >>>>>>>>>>>>>>>>>>>> */}
+                  <TableCell>
+                    {getStatusChip(reward.remainingQty)}
+                  </TableCell>
+                  {/* <<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>> */}
+                  <TableCell>
+                    <Button variant="outlined" size="small" onClick={() => openEditModal(reward.id)}>수정</Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Card>
+
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        onConfirm={handleConfirmDelete}
+        title="리워드 상품 삭제"
+        message="정말로 이 상품을 삭제하시겠습니까?"
+      />
+      
+      <RewardRegisterModal
+        open={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        mode={selectedRewardId ? 'edit' : 'register'}
+      />
     </Box>
   );
 }
