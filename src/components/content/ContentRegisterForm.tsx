@@ -16,19 +16,25 @@ import {
   Checkbox,
   Select,
   MenuItem,
-  FormLabel, // FormLabel을 import에 추가합니다.
+  FormLabel,
 } from '@mui/material';
+// ✨ 1. 콘텐츠 생성을 위한 훅과 타입을 import 합니다.
+import { useCreateContent } from '@/hooks/mutation/useCreateContent';
+import { ContentCreatePayload } from '@/lib/api/admin';
 
-type ContentType = 'story' | 'domination'; // 'territory'를 'domination'으로 수정
+type ContentType = 'story' | 'domination';
 type ProgressMode = 'sequential' | 'non-sequential';
 
 export default function ContentRegisterForm() {
   const router = useRouter();
+  // ✨ 2. API 호출을 위한 mutation 훅을 준비합니다.
+  const createContentMutation = useCreateContent();
+
   const [contentType, setContentType] = useState<ContentType>('story');
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    exposureSlot: 'story', // '노출 위치' 상태 추가
+    exposureSlot: 'story',
     address: '',
     latitude: '',
     longitude: '',
@@ -59,10 +65,30 @@ export default function ContentRegisterForm() {
     console.log('Preview');
   };
 
+  // ✨ 3. handleSubmit 함수를 API를 호출하도록 수정합니다.
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Submit:', { contentType, ...formData });
-    router.push('/save/content/manage');
+
+    // 현재 폼 상태(formData)를 API가 요구하는 형식(Payload)으로 변환합니다.
+    const payload: ContentCreatePayload = {
+      title: formData.title,
+      description: formData.description,
+      content_type: contentType,
+      exposure_slot: formData.exposureSlot as 'story' | 'event',
+      is_always_on: formData.isAlwaysOn,
+      reward_coin: Number(formData.completionReward) || 0,
+      center_point: 
+        formData.latitude && formData.longitude 
+        ? { lat: Number(formData.latitude), lon: Number(formData.longitude) } 
+        : null,
+      start_at: formData.isAlwaysOn || !formData.startDate ? null : new Date(formData.startDate).toISOString(),
+      end_at: formData.isAlwaysOn || !formData.endDate ? null : new Date(formData.endDate).toISOString(),
+      stage_count: Number(formData.stageCount),
+      is_sequential: formData.progressMode === 'sequential',
+    };
+
+    // 변환된 데이터로 콘텐츠 생성 API를 호출합니다.
+    createContentMutation.mutate(payload);
   };
 
   return (
@@ -146,8 +172,6 @@ export default function ContentRegisterForm() {
                 required
               />
             </Box>
-
-            {/* ... (이하 코드는 이전과 동일) ... */}
             
             {/* 위치 설정 */}
             <Box sx={{ mb: 3 }}>
@@ -245,6 +269,7 @@ export default function ContentRegisterForm() {
                   value={formData.startDate}
                   onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
                   disabled={formData.isAlwaysOn}
+                  InputLabelProps={{ shrink: true }}
                 />
                 <Typography>~</Typography>
                 <TextField
@@ -252,6 +277,7 @@ export default function ContentRegisterForm() {
                   value={formData.endDate}
                   onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
                   disabled={formData.isAlwaysOn}
+                  InputLabelProps={{ shrink: true }}
                 />
                 <FormControlLabel
                   control={
@@ -292,9 +318,6 @@ export default function ContentRegisterForm() {
                     label="무제한"
                   />
                 </Box>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                  ※ 인원 제한이 없는 경우 체크
-                </Typography>
               </Box>
             )}
 
@@ -362,8 +385,10 @@ export default function ContentRegisterForm() {
                 type="submit"
                 variant="contained"
                 color="warning"
+                // ✨ 4. API 호출 중에는 버튼을 비활성화하고 텍스트를 변경합니다.
+                disabled={createContentMutation.isPending}
               >
-                저장
+                {createContentMutation.isPending ? '저장 중...' : '저장'}
               </Button>
             </Box>
           </form>
