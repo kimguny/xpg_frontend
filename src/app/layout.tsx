@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import '@/app/globals.css'
 import { QueryProvider } from '@/components/providers/QueryProvider'
 import { RecoilProvider } from '@/components/providers/RecoilProvider'
+import { NavermapsProvider } from 'react-naver-maps';
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -19,11 +20,13 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className={inter.className}>
-        <RecoilProvider>
-          <QueryProvider>
-            {children}
-          </QueryProvider>
-        </RecoilProvider>
+        <NavermapsProvider ncpClientId="1owuku51kd">
+          <RecoilProvider>
+            <QueryProvider>
+              {children}
+            </QueryProvider>
+          </RecoilProvider>
+        </NavermapsProvider>
       </body>
     </html>
   )
