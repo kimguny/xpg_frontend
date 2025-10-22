@@ -3,7 +3,7 @@ import { Inter } from 'next/font/google'
 import '@/app/globals.css'
 import { QueryProvider } from '@/components/providers/QueryProvider'
 import { RecoilProvider } from '@/components/providers/RecoilProvider'
-import { NavermapsProvider } from 'react-naver-maps';
+import Script from 'next/script'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -19,14 +19,18 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ko">
+      <head>
+        <Script
+          strategy="beforeInteractive"
+          src={`https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=1owuku51kd`}
+        />
+      </head>
       <body className={inter.className}>
-        <NavermapsProvider ncpClientId="1owuku51kd">
-          <RecoilProvider>
-            <QueryProvider>
-              {children}
-            </QueryProvider>
-          </RecoilProvider>
-        </NavermapsProvider>
+        <RecoilProvider>
+          <QueryProvider>
+            {children}
+          </QueryProvider>
+        </RecoilProvider>
       </body>
     </html>
   )

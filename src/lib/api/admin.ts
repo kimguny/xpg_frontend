@@ -100,3 +100,24 @@ export const deleteAdminContent = async (contentId: string): Promise<void> => {
 export const toggleContentStatus = async (contentId: string): Promise<void> => {
   await apiClient.patch(`/admin/contents/${contentId}/toggle-open`);
 };
+
+// 콘텐츠 생성을 위한 Request Body 타입 (ContentCreate 스키마 기반)
+export interface ContentCreatePayload {
+  title: string;
+  description?: string | null;
+  content_type: 'story' | 'domination';
+  exposure_slot: 'story' | 'event';
+  is_always_on: boolean;
+  reward_coin?: number;
+  center_point?: { lon: number; lat: number } | null;
+  start_at?: string | null;
+  end_at?: string | null;
+  stage_count?: number | null;
+  is_sequential: boolean;
+}
+
+// 관리자용: 새 콘텐츠 생성 (POST /admin/contents)
+export const createAdminContent = async (payload: ContentCreatePayload): Promise<Content> => {
+  const response = await apiClient.post<Content>('/admin/contents', payload);
+  return response.data;
+};
