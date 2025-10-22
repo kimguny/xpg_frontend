@@ -19,97 +19,90 @@ import {
   DialogContent,
   DialogActions,
   Switch,
+  CircularProgress,
 } from '@mui/material';
-
-interface Content {
-  id: number;
-  name: string;
-  type: '스토리형' | '점령전';
-  startDate: string;
-  endDate: string;
-  stageCount: number;
-  completedStages: number;
-  status: 'active' | 'inactive';
-}
+import { useQueryClient, useMutation } from '@tanstack/react-query';
+// 1. '.tsx' 확장자 제거
+import { useGetContents } from '@/hooks/query/useGetContents'; 
+import { Content, deleteAdminContent, toggleContentStatus } from '@/lib/api/admin';
 
 export default function ContentManageList() {
   const router = useRouter();
+  const queryClient = useQueryClient();
+
+  const { data: contentsData, isLoading } = useGetContents();
+  const contents = contentsData?.items ?? [];
+
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean;
-    type: 'edit' | 'copy' | 'delete' | null;
+    type: 'copy' | 'delete' | null;
     content: Content | null;
   }>({
     open: false,
     type: null,
     content: null,
   });
-
-  // 임시 데이터
-  const [contents, setContents] = useState<Content[]>([
-    {
-      id: 1,
-      name: '목포의 눈물',
-      type: '스토리형',
-      startDate: '2025/09/11',
-      endDate: '2025/09/13',
-      stageCount: 10,
-      completedStages: 3,
-      status: 'active',
+  
+  const deleteMutation = useMutation({
+    mutationFn: deleteAdminContent,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminContents'] });
+      setConfirmDialog({ open: false, type: null, content: null });
     },
-  ]);
+    onError: (error) => {
+      console.error("삭제 실패:", error);
+      alert('삭제에 실패했습니다.');
+    },
+  });
 
-  const handleStatusToggle = (id: number) => {
-    setContents(contents.map(c => 
-      c.id === id ? { ...c, status: c.status === 'active' ? 'inactive' : 'active' } : c
-    ));
+  const toggleStatusMutation = useMutation({
+    mutationFn: toggleContentStatus,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminContents'] });
+    },
+    onError: (error) => {
+      console.error("상태 변경 실패:", error);
+      alert('상태 변경에 실패했습니다.');
+    },
+  });
+
+  const handleStatusToggle = (id: string) => {
+    toggleStatusMutation.mutate(id);
   };
-
+  
   const handleAction = (type: 'edit' | 'copy' | 'delete', content: Content) => {
-    setConfirmDialog({ open: true, type, content });
-  };
-
-  const handleConfirm = () => {
-    const { type, content } = confirmDialog;
-    if (!content) return;
-
-    switch (type) {
-      case 'edit':
-        console.log('Edit:', content);
-        break;
-      case 'copy':
-        console.log('Copy:', content);
-        break;
-      case 'delete':
-        setContents(contents.filter(c => c.id !== content.id));
-        break;
+    if (type === 'edit') {
+      router.push(`/save/content/manage/${content.id}/edit`);
+    } else if (type === 'delete') {
+      setConfirmDialog({ open: true, type: 'delete', content });
+    } else if (type === 'copy') {
+      console.log('복제할 콘텐츠:', content);
+      alert('복제 기능은 등록 페이지 구현 후 연동됩니다.');
     }
-    setConfirmDialog({ open: false, type: null, content: null });
   };
 
-  const handleStageManage = (contentId: number) => {
+  const handleConfirmDelete = () => {
+    if (confirmDialog.content && confirmDialog.type === 'delete') {
+      deleteMutation.mutate(confirmDialog.content.id);
+    }
+  };
+
+  const handleStageManage = (contentId: string) => {
     router.push(`/save/content/stage/${contentId}`);
   };
 
   return (
     <Box>
-      {/* 헤더 */}
       <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
-          콘텐츠 관리
-        </Typography>
-        <Button
-          variant="contained"
-          onClick={() => router.push('/save/content/register')}
-        >
+        <Typography variant="h5" sx={{ fontWeight: 'bold' }}>콘텐츠 관리</Typography>
+        <Button variant="contained" onClick={() => router.push('/save/content/register')}>
           새 콘텐츠 등록
         </Button>
       </Box>
 
       <Card sx={{ boxShadow: 1 }}>
         <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
-          <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-            콘텐츠 리스트
-          </Typography>
+          <Typography variant="h6" sx={{ fontWeight: 'bold' }}>콘텐츠 리스트</Typography>
         </Box>
 
         <TableContainer>
@@ -126,105 +119,83 @@ export default function ContentManageList() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {contents.map((content) => (
-                <TableRow key={content.id} sx={{ '&:hover': { bgcolor: 'grey.50' } }}>
-                  <TableCell>{content.name}</TableCell>
-                  <TableCell>{content.type}</TableCell>
-                  <TableCell>{`${content.startDate}~${content.endDate}`}</TableCell>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="body2">
-                        {content.completedStages}/{content.stageCount}
-                      </Typography>
-                      <Button
-                        variant="contained"
+              {isLoading ? (
+                <TableRow><TableCell colSpan={7} align="center"><CircularProgress /></TableCell></TableRow>
+              ) : contents.length === 0 ? (
+                <TableRow><TableCell colSpan={7} align="center">등록된 콘텐츠가 없습니다.</TableCell></TableRow>
+              ) : (
+                contents.map((content) => (
+                  <TableRow key={content.id} sx={{ '&:hover': { bgcolor: 'grey.50' } }}>
+                    <TableCell>{content.title}</TableCell>
+                    <TableCell>{content.content_type}</TableCell>
+                    <TableCell>
+                      {content.is_always_on 
+                        ? '상시' 
+                        : `${content.start_at ? new Date(content.start_at).toLocaleDateString() : '미지정'} ~ ${content.end_at ? new Date(content.end_at).toLocaleDateString() : '미지정'}`}
+                    </TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="body2">
+                          0/{content.stage_count ?? 'N/A'}
+                        </Typography>
+                        <Button variant="contained" size="small" onClick={() => handleStageManage(content.id)} sx={{ minWidth: 60 }}>
+                          관리
+                        </Button>
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={content.is_open ? '활성' : '비활성'}
                         size="small"
-                        onClick={() => handleStageManage(content.id)}
-                        sx={{ minWidth: 60 }}
-                      >
-                        관리
-                      </Button>
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={content.status === 'active' ? '등록 완료' : '미등록'}
-                      size="small"
-                      color={content.status === 'active' ? 'success' : 'default'}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="body2">
-                        {content.status === 'active' ? '활성' : '비활성'}
-                      </Typography>
-                      <Switch
-                        checked={content.status === 'active'}
-                        onChange={() => handleStatusToggle(content.id)}
-                        size="small"
+                        color={content.is_open ? 'success' : 'default'}
                       />
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      <Button
-                        variant="text"
-                        size="small"
-                        onClick={() => handleAction('edit', content)}
-                        sx={{ minWidth: 50 }}
-                      >
-                        수정
-                      </Button>
-                      <Typography sx={{ color: 'text.secondary' }}>|</Typography>
-                      <Button
-                        variant="text"
-                        size="small"
-                        onClick={() => handleAction('copy', content)}
-                        sx={{ minWidth: 50 }}
-                      >
-                        복제
-                      </Button>
-                      <Typography sx={{ color: 'text.secondary' }}>|</Typography>
-                      <Button
-                        variant="text"
-                        size="small"
-                        color="error"
-                        onClick={() => handleAction('delete', content)}
-                        sx={{ minWidth: 50 }}
-                      >
-                        삭제
-                      </Button>
-                    </Box>
-                  </TableCell>
-                </TableRow>
-              ))}
+                    </TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="body2">{content.is_open ? '활성' : '비활성'}</Typography>
+                        <Switch
+                          checked={content.is_open}
+                          onChange={() => handleStatusToggle(content.id)}
+                          size="small"
+                          disabled={toggleStatusMutation.isPending}
+                        />
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Button variant="text" size="small" onClick={() => handleAction('edit', content)} sx={{ minWidth: 50 }}>
+                          수정
+                        </Button>
+                        <Typography sx={{ color: 'text.secondary' }}>|</Typography>
+                        <Button variant="text" size="small" onClick={() => handleAction('copy', content)} sx={{ minWidth: 50 }}>
+                          복제
+                        </Button>
+                        <Typography sx={{ color: 'text.secondary' }}>|</Typography>
+                        <Button variant="text" size="small" color="error" onClick={() => handleAction('delete', content)} sx={{ minWidth: 50 }}>
+                          삭제
+                        </Button>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </TableContainer>
       </Card>
 
-      {/* 확인 다이얼로그 */}
       <Dialog open={confirmDialog.open} onClose={() => setConfirmDialog({ open: false, type: null, content: null })}>
-        <DialogTitle>
-          {confirmDialog.type === 'edit' && '콘텐츠 수정'}
-          {confirmDialog.type === 'copy' && '콘텐츠 복제'}
-          {confirmDialog.type === 'delete' && '콘텐츠 삭제'}
-        </DialogTitle>
+        <DialogTitle>콘텐츠 삭제</DialogTitle>
         <DialogContent>
+          {/* 2. 큰따옴표 제거하고 템플릿 리터럴로 수정 */}
           <Typography>
-            {confirmDialog.content?.name}을(를) 
-            {confirmDialog.type === 'edit' && ' 수정'}
-            {confirmDialog.type === 'copy' && ' 복제'}
-            {confirmDialog.type === 'delete' && ' 삭제'}
-            하시겠습니까?
+            {`'${confirmDialog.content?.title}' 콘텐츠를 정말 삭제하시겠습니까?`}
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setConfirmDialog({ open: false, type: null, content: null })}>
-            취소
-          </Button>
-          <Button onClick={handleConfirm} variant="contained">
-            확인
+          <Button onClick={() => setConfirmDialog({ open: false, type: null, content: null })}>취소</Button>
+          <Button onClick={handleConfirmDelete} variant="contained" color="error" disabled={deleteMutation.isPending}>
+            {deleteMutation.isPending ? '삭제 중...' : '삭제'}
           </Button>
         </DialogActions>
       </Dialog>
