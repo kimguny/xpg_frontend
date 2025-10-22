@@ -10,6 +10,8 @@ import {
   Box,
 } from '@mui/material';
 
+// ✨ declare global 블록을 완전히 삭제합니다.
+
 interface MapDialogProps {
   open: boolean;
   onClose: () => void;
@@ -22,9 +24,6 @@ export default function MapDialog({ open, onClose, onLocationSelect }: MapDialog
 
   useEffect(() => {
     if (open && mapElement.current && window.naver && window.naver.maps) {
-      setMarkerPosition(null);
-
-      // ✨ setTimeout으로 지도 생성을 약간 지연시켜 렌더링 타이밍 문제를 해결합니다.
       const timer = setTimeout(() => {
         if (!mapElement.current) return;
 
@@ -47,12 +46,8 @@ export default function MapDialog({ open, onClose, onLocationSelect }: MapDialog
             });
           }
         });
+      }, 100);
 
-        // 다이얼로그가 닫힐 때 이벤트 리스너를 정리하기 위한 로직
-        // (이 부분은 setTimeout 스코프 밖의 클린업 함수로 관리하는 것이 더 안정적입니다.)
-      }, 100); // 0.1초 지연
-
-      // 클린업 함수: 다이얼로그가 닫히거나 재렌더링 시 타이머를 제거합니다.
       return () => clearTimeout(timer);
     }
   }, [open]);
