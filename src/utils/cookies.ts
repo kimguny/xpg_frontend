@@ -35,7 +35,7 @@ export const setAuthToken = (token: string) => {
   return setCookie(TOKEN_COOKIE_NAME, token, {
     path: '/',
     maxAge: 60 * 60 * 24 * 7, // 7일
-    secure: process.env.NODE_ENV === 'production',
+    secure: false,
     sameSite: 'lax'
   });
 };
