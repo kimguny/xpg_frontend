@@ -20,7 +20,7 @@ import {
 } from '@mui/material';
 import { useCreateContent } from '@/hooks/mutation/useCreateContent';
 import { ContentCreatePayload } from '@/lib/api/admin';
-// import MapDialog from '@/components/common/MapDialog';
+import MapDialog from '@/components/common/MapDialog';
 
 type ContentType = 'story' | 'domination';
 type ProgressMode = 'sequential' | 'non-sequential';
@@ -170,11 +170,11 @@ export default function ContentRegisterForm() {
         </CardContent>
       </Card>
 
-      {/* <MapDialog
+      <MapDialog
         open={isMapOpen}
         onClose={() => setIsMapOpen(false)}
         onLocationSelect={handleLocationSelect}
-      /> */}
+      />
     </Box>
   );
 }
