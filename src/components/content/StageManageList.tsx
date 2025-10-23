@@ -142,7 +142,7 @@ export default function StageManageList({ contentId }: StageManageListProps) {
                         <Button
                           variant="outlined"
                           size="small"
-                          onClick={() => router.push(`/save/content/stage/${contentId}/${stage.stage_no}/edit`)}
+                          onClick={() => router.push(`/save/content/stage/${contentId}/${stage.id}/edit`)}
                         >
                           수정
                         </Button>

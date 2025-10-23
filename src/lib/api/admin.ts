@@ -185,6 +185,8 @@ export interface Stage {
   thumbnail_url: string | null;
   meta: object | null;
   created_at: string;
+  hint_count: number;
+  puzzle_count: number;
 }
 
 /**

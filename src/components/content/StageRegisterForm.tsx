@@ -30,8 +30,8 @@ import MapDialog from '@/components/common/MapDialog';
 
 interface StageRegisterFormProps {
   contentId: string;
-  stageNo: string;
   stageId?: string;
+  stageNo?: string;
 }
 
 // react-hook-form에서 사용할 폼 데이터 타입
@@ -44,7 +44,7 @@ type StageFormData = Omit<StageCreatePayload, 'location'> & {
   unlockCondition: 'open' | 'location' | 'stage';
 };
 
-export default function StageRegisterForm({ contentId, stageNo, stageId }: StageRegisterFormProps) {
+export default function StageRegisterForm({ contentId, stageId, stageNo }: StageRegisterFormProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState(0);
   const [isMapOpen, setIsMapOpen] = useState(false);
@@ -52,6 +52,8 @@ export default function StageRegisterForm({ contentId, stageNo, stageId }: Stage
   const isEditMode = !!stageId;
   
   const { data: existingStage, isLoading: isLoadingStage } = useGetStageById(stageId);
+  const displayStageNo = isEditMode ? existingStage?.stage_no : stageNo;
+
   const createMutation = useCreateStage(contentId);
   const updateMutation = useUpdateStage(contentId, stageId!);
 
@@ -63,6 +65,12 @@ export default function StageRegisterForm({ contentId, stageNo, stageId }: Stage
       start_button_text: '탐험 시작하기',
       is_hidden: false,
       unlockCondition: 'open',
+      latitude: '',
+      longitude: '',
+      radius_m: '',
+      time_limit_min: null,
+      clear_need_nfc_count: null,
+      clear_time_attack_sec: null,
     },
   });
 
@@ -121,7 +129,7 @@ export default function StageRegisterForm({ contentId, stageNo, stageId }: Stage
             스테이지 {isEditMode ? '수정' : '등록'}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            스테이지 No: {stageNo}
+            스테이지 No: {displayStageNo}
           </Typography>
         </Box>
         <Button
