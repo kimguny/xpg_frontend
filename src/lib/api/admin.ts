@@ -121,3 +121,40 @@ export const createAdminContent = async (payload: ContentCreatePayload): Promise
   const response = await apiClient.post<Content>('/admin/contents', payload);
   return response.data;
 };
+
+// 콘텐츠 수정을 위한 Request Body 타입
+export interface ContentUpdatePayload {
+  title?: string;
+  description?: string | null;
+  content_type?: 'story' | 'domination';
+  exposure_slot?: 'story' | 'event';
+  is_always_on?: boolean;
+  reward_coin?: number;
+  center_point?: { lon: number; lat: number } | null;
+  start_at?: string | null;
+  end_at?: string | null;
+  stage_count?: number | null;
+  is_sequential?: boolean;
+}
+
+/**
+ * 관리자용: 특정 콘텐츠 상세 정보 조회 (GET /admin/contents/{contentId})
+ */
+export const getAdminContentById = async (contentId: string): Promise<Content> => {
+  const response = await apiClient.get<Content>(`/admin/contents/${contentId}`);
+  return response.data;
+};
+
+/**
+ * 관리자용: 콘텐츠 정보 수정 (PATCH /admin/contents/{contentId})
+ */
+export const updateAdminContent = async ({ 
+  contentId, 
+  payload 
+}: { 
+  contentId: string; 
+  payload: ContentUpdatePayload; 
+}): Promise<Content> => {
+  const response = await apiClient.patch<Content>(`/admin/contents/${contentId}`, payload);
+  return response.data;
+};

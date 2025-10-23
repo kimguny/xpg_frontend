@@ -1,5 +1,6 @@
 'use client';
-
+import { useEffect } from 'react'; 
+import { CircularProgress } from '@mui/material';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -22,15 +23,27 @@ import { useCreateContent } from '@/hooks/mutation/useCreateContent';
 import { ContentCreatePayload } from '@/lib/api/admin';
 import MapDialog from '@/components/common/MapDialog';
 
+import { useUpdateContent } from '@/hooks/mutation/useUpdateContent';
+import { useGetContentById } from '@/hooks/query/useGetContentById';
+import { ContentUpdatePayload } from '@/lib/api/admin';
+
 type ContentType = 'story' | 'domination';
 type ProgressMode = 'sequential' | 'non-sequential';
 
-export default function ContentRegisterForm() {
+interface ContentRegisterFormProps {
+  contentId?: string;
+}
+
+export default function ContentRegisterForm({ contentId }: ContentRegisterFormProps) {
   const router = useRouter();
   const createContentMutation = useCreateContent();
+  const isEditMode = !!contentId;
+  const { data: existingContent, isLoading: isLoadingContent } = useGetContentById(contentId);
+  const updateMutation = useUpdateContent(contentId);
+  const createMutation = useCreateContent()
   const [isMapOpen, setIsMapOpen] = useState(false);
-
   const [contentType, setContentType] = useState<ContentType>('story');
+  
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -50,6 +63,31 @@ export default function ContentRegisterForm() {
     nextContent: false,
     prerequisiteContent: '',
   });
+
+  useEffect(() => {
+    if (existingContent) {
+      setContentType(existingContent.content_type as ContentType);
+      setFormData({
+        title: existingContent.title,
+        description: existingContent.description || '',
+        exposureSlot: existingContent.exposure_slot,
+        address: '', // API에 주소 필드가 없으므로 비워둡니다.
+        latitude: existingContent.center_point?.lat.toString() || '',
+        longitude: existingContent.center_point?.lon.toString() || '',
+        backgroundImage: null, // 이미지는 새로 업로드해야 하므로 초기화합니다.
+        stageCount: existingContent.stage_count || 1,
+        progressMode: existingContent.is_sequential ? 'sequential' : 'non-sequential',
+        startDate: existingContent.start_at ? existingContent.start_at.split('T')[0] : '',
+        endDate: existingContent.end_at ? existingContent.end_at.split('T')[0] : '',
+        isAlwaysOn: existingContent.is_always_on,
+        maxParticipants: '', // 이 필드들은 API에 없으므로 비워둡니다.
+        isUnlimited: false,
+        completionReward: existingContent.reward_coin.toString(),
+        nextContent: false,
+        prerequisiteContent: '',
+      });
+    }
+  }, [existingContent]);
 
   const handleLocationSelect = (location: { lat: number; lng: number }) => {
     setFormData({
@@ -71,7 +109,7 @@ export default function ContentRegisterForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const payload: ContentCreatePayload = {
+    const payload: ContentCreatePayload | ContentUpdatePayload = {
       title: formData.title,
       description: formData.description,
       content_type: contentType,
@@ -87,36 +125,39 @@ export default function ContentRegisterForm() {
       stage_count: Number(formData.stageCount),
       is_sequential: formData.progressMode === 'sequential',
     };
-    createContentMutation.mutate(payload);
+
+    if (isEditMode) {
+      updateMutation.mutate(payload);
+    } else {
+      createMutation.mutate(payload as ContentCreatePayload);
+    }
   };
+
+  const isLoading = createContentMutation.isPending || updateMutation.isPending;
+
+  if (isEditMode && isLoadingContent) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <Box>
       <Box sx={{ mb: 3, display: 'flex', alignItems: 'center' }}>
         <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
-          콘텐츠 등록
+          {isEditMode ? '콘텐츠 수정' : '콘텐츠 등록'}
         </Typography>
       </Box>
 
       <Card sx={{ boxShadow: 1 }}>
         <CardContent sx={{ p: 3 }}>
           <form onSubmit={handleSubmit}>
-            <Box sx={{ mb: 3 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>1. 콘텐츠 유형</Typography>
-                <FormControl component="fieldset"><RadioGroup row value={contentType} onChange={(e) => setContentType(e.target.value as ContentType)}><FormControlLabel value="story" control={<Radio />} label="스토리형" /><FormControlLabel value="domination" control={<Radio />} label="점령전" /></RadioGroup></FormControl>
-            </Box>
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>노출 위치</Typography>
-              <FormControl component="fieldset"><RadioGroup row name="exposureSlot" value={formData.exposureSlot} onChange={(e) => setFormData({ ...formData, exposureSlot: e.target.value })}><FormControlLabel value="story" control={<Radio />} label="스토리" /><FormControlLabel value="event" control={<Radio />} label="이벤트" /></RadioGroup></FormControl>
-            </Box>
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>메인 타이틀</Typography>
-              <Box sx={{ display: 'flex', gap: 2 }}><TextField fullWidth placeholder="※ 콘텐츠 이름을 입력하세요 ex) 목포의 눈물" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} required /><Button variant="contained" sx={{ minWidth: 100 }}>중복검사</Button></Box>
-            </Box>
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>설명</Typography>
-              <TextField fullWidth multiline rows={4} placeholder="한때 가장 붐비던 거리......" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} required />
-            </Box>
+            <Box sx={{ mb: 3 }}><Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>1. 콘텐츠 유형</Typography><FormControl component="fieldset"><RadioGroup row value={contentType} onChange={(e) => setContentType(e.target.value as ContentType)}><FormControlLabel value="story" control={<Radio />} label="스토리형" /><FormControlLabel value="domination" control={<Radio />} label="점령전" /></RadioGroup></FormControl></Box>
+            <Box sx={{ mb: 3 }}><Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>노출 위치</Typography><FormControl component="fieldset"><RadioGroup row name="exposureSlot" value={formData.exposureSlot} onChange={(e) => setFormData({ ...formData, exposureSlot: e.target.value })}><FormControlLabel value="story" control={<Radio />} label="스토리" /><FormControlLabel value="event" control={<Radio />} label="이벤트" /></RadioGroup></FormControl></Box>
+            <Box sx={{ mb: 3 }}><Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>메인 타이틀</Typography><Box sx={{ display: 'flex', gap: 2 }}><TextField fullWidth placeholder="※ 콘텐츠 이름을 입력하세요 ex) 목포의 눈물" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} required /><Button variant="contained" sx={{ minWidth: 100 }}>중복검사</Button></Box></Box>
+            <Box sx={{ mb: 3 }}><Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>설명</Typography><TextField fullWidth multiline rows={4} placeholder="한때 가장 붐비던 거리......" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} required /></Box>
             
             <Box sx={{ mb: 3 }}>
               <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
@@ -162,8 +203,8 @@ export default function ContentRegisterForm() {
 
             <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', pt: 3 }}>
               <Button variant="contained" color="success" onClick={handlePreview}>미리보기</Button>
-              <Button type="submit" variant="contained" color="warning" disabled={createContentMutation.isPending}>
-                {createContentMutation.isPending ? '저장 중...' : '저장'}
+              <Button type="submit" variant="contained" color="warning" disabled={isLoading}>
+                {isLoading ? (isEditMode ? '수정 중...' : '저장 중...') : (isEditMode ? '수정하기' : '저장하기')}
               </Button>
             </Box>
           </form>
