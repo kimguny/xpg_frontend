@@ -17,6 +17,7 @@ import {
   Tabs,
   Tab,
   CircularProgress,
+  FormLabel,
 } from '@mui/material';
 import { useCreateStage } from '@/hooks/mutation/useCreateStage';
 import { useUpdateStage } from '@/hooks/mutation/useUpdateStage';
@@ -34,14 +35,14 @@ interface StageRegisterFormProps {
   stageNo?: string;
 }
 
-// react-hook-form에서 사용할 폼 데이터 타입
-// API Payload와 최대한 유사하게 정의하되, UI 편의를 위한 필드 추가
-type StageFormData = Omit<StageCreatePayload, 'location'> & {
+type StageFormData = Omit<StageCreatePayload, 'location' | 'time_limit_min' | 'clear_need_nfc_count' | 'clear_time_attack_sec'> & {
   latitude?: number | string;
   longitude?: number | string;
   radius_m?: number | string;
-  // UI 전용 필드들
   unlockCondition: 'open' | 'location' | 'stage';
+  time_limit_min?: number | string | null;
+  clear_need_nfc_count?: number | string | null;
+  clear_time_attack_sec?: number | string | null;
 };
 
 export default function StageRegisterForm({ contentId, stageId, stageNo }: StageRegisterFormProps) {
@@ -52,8 +53,6 @@ export default function StageRegisterForm({ contentId, stageId, stageNo }: Stage
   const isEditMode = !!stageId;
   
   const { data: existingStage, isLoading: isLoadingStage } = useGetStageById(stageId);
-  const displayStageNo = isEditMode ? existingStage?.stage_no : stageNo;
-
   const createMutation = useCreateStage(contentId);
   const updateMutation = useUpdateStage(contentId, stageId!);
 
@@ -62,15 +61,20 @@ export default function StageRegisterForm({ contentId, stageId, stageNo }: Stage
       stage_no: stageNo,
       title: '',
       description: '',
-      start_button_text: '탐험 시작하기',
+      start_button_text: '',
       is_hidden: false,
       unlockCondition: 'open',
+      unlock_on_enter_radius: false,
+      unlock_stage_id: null,
       latitude: '',
       longitude: '',
       radius_m: '',
-      time_limit_min: null,
-      clear_need_nfc_count: null,
-      clear_time_attack_sec: null,
+      // ✨ 1. null 대신 빈 문자열('')로 초기값을 설정합니다.
+      time_limit_min: '',
+      clear_need_nfc_count: '',
+      clear_time_attack_sec: '',
+      background_image_url: '',
+      thumbnail_url: '',
     },
   });
 
@@ -84,6 +88,10 @@ export default function StageRegisterForm({ contentId, stageId, stageNo }: Stage
         longitude: existingStage.location?.lon ?? '',
         radius_m: existingStage.location?.radius_m ?? '', 
         unlockCondition: existingStage.unlock_stage_id ? 'stage' : (existingStage.location ? 'location' : 'open'),
+        // ✨ 2. API로부터 받은 null 값을 빈 문자열('')로 변환합니다.
+        time_limit_min: existingStage.time_limit_min ?? '',
+        clear_need_nfc_count: existingStage.clear_need_nfc_count ?? '',
+        clear_time_attack_sec: existingStage.clear_time_attack_sec ?? '',
       };
       reset(formData);
     }
@@ -91,6 +99,7 @@ export default function StageRegisterForm({ contentId, stageId, stageNo }: Stage
 
   const onSubmit: SubmitHandler<StageFormData> = (data) => {
     // 폼 데이터를 실제 API 페이로드로 변환
+    // (빈 문자열을 null로 변환하는 로직은 이미 올바르게 작성되어 있습니다)
     const payload: StageCreatePayload = {
       ...data,
       time_limit_min: data.time_limit_min ? Number(data.time_limit_min) : null,
@@ -101,6 +110,8 @@ export default function StageRegisterForm({ contentId, stageId, stageNo }: Stage
         lon: Number(data.longitude),
         radius_m: data.radius_m ? Number(data.radius_m) : null,
       } : null,
+      unlock_stage_id: data.unlockCondition === 'stage' ? data.unlock_stage_id : null,
+      unlock_on_enter_radius: data.unlockCondition === 'location',
     };
 
     if (isEditMode) {
@@ -116,6 +127,7 @@ export default function StageRegisterForm({ contentId, stageId, stageNo }: Stage
   };
 
   const isLoading = createMutation.isPending || updateMutation.isPending;
+  const displayStageNo = isEditMode ? existingStage?.stage_no : stageNo;
 
   if (isEditMode && isLoadingStage) {
     return <CircularProgress />;
@@ -152,21 +164,8 @@ export default function StageRegisterForm({ contentId, stageId, stageNo }: Stage
           <form onSubmit={handleSubmit(onSubmit)}>
             {activeTab === 0 && (
               <Box>
-                <Controller
-                  name="title"
-                  control={control}
-                  rules={{ required: '타이틀은 필수입니다.' }}
-                  render={({ field, fieldState }) => (
-                    <TextField {...field} label="스테이지 타이틀" fullWidth sx={{ mb: 3 }} error={!!fieldState.error} helperText={fieldState.error?.message} />
-                  )}
-                />
-                <Controller
-                  name="description"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField {...field} label="설명" fullWidth multiline rows={4} sx={{ mb: 3 }} />
-                  )}
-                />
+                <Controller name="title" control={control} rules={{ required: '타이틀은 필수입니다.' }} render={({ field, fieldState }) => (<TextField {...field} label="스테이지 타이틀" fullWidth sx={{ mb: 3 }} error={!!fieldState.error} helperText={fieldState.error?.message} />)} />
+                <Controller name="description" control={control} render={({ field }) => (<TextField {...field} label="설명" fullWidth multiline rows={4} sx={{ mb: 3 }} />)} />
                 
                 <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>위치 설정</Typography>
                 <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
@@ -176,29 +175,48 @@ export default function StageRegisterForm({ contentId, stageId, stageNo }: Stage
                 </Box>
 
                 <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>스테이지 해금 조건</Typography>
-                <FormControl component="fieldset" sx={{ mb: 2 }}>
-                  <Controller
-                    name="unlockCondition"
-                    control={control}
-                    render={({ field }) => (
-                      <RadioGroup {...field} row>
-                        <FormControlLabel value="open" control={<Radio />} label="오픈" />
-                        <FormControlLabel value="location" control={<Radio />} label="위치 반경" />
-                        <FormControlLabel value="stage" control={<Radio />} label="스테이지 완료" />
+                <Box sx={{ mb: 3 }}>
+                  <FormControl component="fieldset">
+                    <Controller name="unlockCondition" control={control} render={({ field }) => (
+                        <RadioGroup {...field} row>
+                          <FormControlLabel value="open" control={<Radio />} label="오픈" />
+                          <FormControlLabel value="location" control={<Radio />} label="위치 반경" />
+                          <FormControlLabel value="stage" control={<Radio />} label="스테이지 완료" />
+                        </RadioGroup>
+                      )}
+                    />
+                  </FormControl>
+                  {unlockCondition === 'location' && (
+                    <Controller name="radius_m" control={control} render={({ field }) => (<TextField {...field} type="number" label="반경 (m)" sx={{ width: 200, mt: 1 }} />)} />
+                  )}
+                  {unlockCondition === 'stage' && (
+                     <Controller name="unlock_stage_id" control={control} render={({ field }) => (<TextField {...field} label="완료해야 할 스테이지 ID" sx={{ width: 300, mt: 1 }} />)} />
+                  )}
+                </Box>
+
+                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>스테이지 제한 시간</Typography>
+                <Controller name="time_limit_min" control={control} render={({ field }) => (<TextField {...field} type="number" label="제한 시간 (분)" placeholder="없음" sx={{ width: 200, mb: 3 }} />)} />
+                
+                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>스테이지 클리어 조건</Typography>
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 3 }}>
+                   <Controller name="clear_time_attack_sec" control={control} render={({ field }) => (<TextField {...field} type="number" label="타임어택 (초)" sx={{ width: 150 }} />)} />
+                   <Controller name="clear_need_nfc_count" control={control} render={({ field }) => (<TextField {...field} type="number" label="필요 NFC 태그 수" sx={{ width: 150 }} />)} />
+                </Box>
+
+                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>히든 스테이지 설정</Typography>
+                <FormControl component="fieldset" sx={{ mb: 3 }}>
+                  <Controller name="is_hidden" control={control} render={({ field }) => (
+                      <RadioGroup {...field} row value={(field.value ?? false).toString()} onChange={(e) => field.onChange(e.target.value === 'true')}>
+                        <FormControlLabel value="false" control={<Radio />} label="일반 스테이지" />
+                        <FormControlLabel value="true" control={<Radio />} label="히든 스테이지" />
                       </RadioGroup>
                     )}
                   />
                 </FormControl>
-                {unlockCondition === 'location' && (
-                  <Controller
-                    name="radius_m"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField {...field} type="number" label="반경 (m)" sx={{ width: 200 }} />
-                    )}
-                  />
-                )}
-                {/* '스테이지 완료' 조건 UI는 추후 구현 */}
+
+                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>시작 버튼 텍스트</Typography>
+                <Controller name="start_button_text" control={control} render={({ field }) => (<TextField {...field} label="시작 버튼 텍스트" fullWidth sx={{ mb: 3 }} />)} />
+                
               </Box>
             )}
 
