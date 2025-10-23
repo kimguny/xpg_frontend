@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import '@/app/globals.css'
 import { QueryProvider } from '@/components/providers/QueryProvider'
-import { RecoilProvider } from '@/components/providers/RecoilProvider'
 import Script from 'next/script'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -22,15 +21,13 @@ export default function RootLayout({
       <head>
         <Script
           strategy="beforeInteractive"
-          src={`https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=1owuku51kd`}
+          src={`https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID}`}
         />
       </head>
       <body className={inter.className}>
-        <RecoilProvider>
-          <QueryProvider>
-            {children}
-          </QueryProvider>
-        </RecoilProvider>
+        <QueryProvider>
+          {children}
+        </QueryProvider>
       </body>
     </html>
   )

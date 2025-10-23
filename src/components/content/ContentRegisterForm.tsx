@@ -27,6 +27,8 @@ import { useUpdateContent } from '@/hooks/mutation/useUpdateContent';
 import { useGetContentById } from '@/hooks/query/useGetContentById';
 import { ContentUpdatePayload } from '@/lib/api/admin';
 
+import { useContentStore } from '@/store/contentStore';
+
 type ContentType = 'story' | 'domination';
 type ProgressMode = 'sequential' | 'non-sequential';
 
@@ -43,6 +45,7 @@ export default function ContentRegisterForm({ contentId }: ContentRegisterFormPr
   const createMutation = useCreateContent()
   const [isMapOpen, setIsMapOpen] = useState(false);
   const [contentType, setContentType] = useState<ContentType>('story');
+  const { contentToClone, setContentToClone } = useContentStore();
   
   const [formData, setFormData] = useState({
     title: '',
@@ -88,6 +91,28 @@ export default function ContentRegisterForm({ contentId }: ContentRegisterFormPr
       });
     }
   }, [existingContent]);
+
+  useEffect(() => {
+    if (!isEditMode && contentToClone) {
+      setContentType(contentToClone.content_type as ContentType);
+      setFormData({
+        ...formData,
+        title: `${contentToClone.title} [복사본]`,
+        description: contentToClone.description || '',
+        exposureSlot: contentToClone.exposure_slot,
+        latitude: contentToClone.center_point?.lat.toString() || '',
+        longitude: contentToClone.center_point?.lon.toString() || '',
+        stageCount: contentToClone.stage_count || 1,
+        progressMode: contentToClone.is_sequential ? 'sequential' : 'non-sequential',
+        startDate: contentToClone.start_at ? contentToClone.start_at.split('T')[0] : '',
+        endDate: contentToClone.end_at ? contentToClone.end_at.split('T')[0] : '',
+        isAlwaysOn: contentToClone.is_always_on,
+        completionReward: contentToClone.reward_coin.toString(),
+      });
+
+      setContentToClone(null);
+    }
+  }, [contentToClone, isEditMode, setContentToClone]);
 
   const handleLocationSelect = (location: { lat: number; lng: number }) => {
     setFormData({

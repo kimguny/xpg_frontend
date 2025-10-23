@@ -22,9 +22,9 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
-// 1. '.tsx' 확장자 제거
 import { useGetContents } from '@/hooks/query/useGetContents'; 
 import { Content, deleteAdminContent, toggleContentStatus } from '@/lib/api/admin';
+import { useContentStore } from '@/store/contentStore';
 
 export default function ContentManageList() {
   const router = useRouter();
@@ -32,6 +32,8 @@ export default function ContentManageList() {
 
   const { data: contentsData, isLoading } = useGetContents();
   const contents = contentsData?.items ?? [];
+
+  const setContentToClone = useContentStore((state) => state.setContentToClone);
 
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean;
@@ -76,8 +78,8 @@ export default function ContentManageList() {
     } else if (type === 'delete') {
       setConfirmDialog({ open: true, type: 'delete', content });
     } else if (type === 'copy') {
-      console.log('복제할 콘텐츠:', content);
-      alert('복제 기능은 등록 페이지 구현 후 연동됩니다.');
+      setContentToClone(content);
+      router.push('/save/content/register');
     }
   };
 

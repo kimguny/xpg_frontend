@@ -2,8 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSetRecoilState } from 'recoil';
-import { authState } from '@/store/authState';
+import { useAuthStore } from '@/store/authStore';
 import { setAuthToken } from '@/utils/cookies';
 import { loginUser } from '@/lib/api/auth';
 import { LoginRequest } from '@/types/auth';
@@ -17,7 +16,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   
   const router = useRouter();
-  const setAuth = useSetRecoilState(authState);
+  const setUser = useAuthStore((state) => state.setUser);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -38,13 +37,7 @@ export default function LoginPage() {
       // JWT 토큰 저장
       setAuthToken(response.accessToken);
       
-      // Recoil 상태 업데이트
-      setAuth({
-        user: response.user,
-        isAuthenticated: true,
-        isLoading: false,
-        error: null
-      });
+      setUser(response.user);
       
       // 대시보드로 리다이렉트
       router.push('/save/dashboard');
