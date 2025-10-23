@@ -167,11 +167,24 @@ export interface Stage {
   stage_no: string;
   title: string;
   description: string | null;
+  start_button_text: string | null;
   uses_nfc: boolean;
   is_hidden: boolean;
+  time_limit_min: number | null;
+  clear_need_nfc_count: number | null;
+  clear_time_attack_sec: number | null;
+  location: {
+    lon: number;
+    lat: number;
+    radius_m?: number | null;
+  } | null;
+  unlock_on_enter_radius: boolean;
   is_open: boolean;
+  unlock_stage_id: string | null;
+  background_image_url: string | null;
+  thumbnail_url: string | null;
+  meta: object | null;
   created_at: string;
-  // ... 그 외 필요한 필드들
 }
 
 /**
@@ -179,5 +192,67 @@ export interface Stage {
  */
 export const getAdminStages = async (contentId: string): Promise<Stage[]> => {
   const response = await apiClient.get<Stage[]>(`/admin/stages/by-content/${contentId}`);
+  return response.data;
+};
+
+// 스테이지 생성을 위한 Request Body 타입 (StageCreate 스키마 기반)
+export interface StageCreatePayload {
+  stage_no: string;
+  title: string;
+  description?: string | null;
+  start_button_text?: string | null;
+  is_hidden?: boolean;
+  time_limit_min?: number | null;
+  clear_need_nfc_count?: number | null;
+  clear_time_attack_sec?: number | null;
+  location?: {
+    lon: number;
+    lat: number;
+    radius_m?: number | null;
+  } | null;
+  unlock_on_enter_radius?: boolean;
+  unlock_stage_id?: string | null;
+  background_image_url?: string | null;
+  thumbnail_url?: string | null;
+  meta?: object | null;
+}
+
+// 스테이지 수정을 위한 Request Body 타입 (StageUpdate 스키마 기반)
+export type StageUpdatePayload = Partial<StageCreatePayload>;
+
+/**
+ * 관리자용: 새 스테이지 생성 (POST /admin/stages)
+ */
+export const createAdminStage = async ({
+  contentId,
+  payload,
+}: {
+  contentId: string;
+  payload: StageCreatePayload;
+}): Promise<Stage> => {
+  const response = await apiClient.post<Stage>(`/admin/stages?content_id=${contentId}`, payload);
+  return response.data;
+};
+
+/**
+ * 관리자용: 특정 스테이지 상세 정보 조회 (GET /admin/stages/{stageId})
+ * (백엔드에 해당 API가 존재한다고 가정합니다)
+ */
+export const getAdminStageById = async (stageId: string): Promise<Stage> => {
+  const response = await apiClient.get<Stage>(`/admin/stages/${stageId}`);
+  return response.data;
+};
+
+/**
+ * 관리자용: 스테이지 정보 수정 (PATCH /admin/stages/{stageId})
+ */
+export const updateAdminStage = async ({
+  stageId,
+  payload,
+}: {
+  stageId: string;
+  payload: StageUpdatePayload;
+}): Promise<Stage> => {
+  const response = await apiClient.patch<Stage>(`/admin/stages/${stageId}`, payload);
   return response.data;
 };
