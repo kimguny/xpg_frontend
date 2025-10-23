@@ -198,6 +198,13 @@ export interface Stage {
     showWhen: string;
     config: PuzzleConfigData;
   }[];
+  unlock_config?: {
+    preset: 'fullscreen' | 'popup';
+    next_action: 'next_step' | 'next_stage';
+    image_url?: string | null;
+    bottom_text?: string | null;
+    title?: string | null;
+  } | null;
   created_at: string;
 }
 
@@ -355,4 +362,28 @@ export const updateStagePuzzles = async ({
 }): Promise<PuzzleUpdateResponse> => { 
   const response = await apiClient.put<PuzzleUpdateResponse>(`/admin/stages/${stageId}/puzzles`, payload);
   return response.data;
+};
+
+// 해금 설정을 위한 Payload 타입 (UnlockConfig 스키마 기반)
+export interface UnlockConfigPayload {
+  preset: 'fullscreen' | 'popup';
+  next_action: 'next_step' | 'next_stage';
+  image_url?: string | null;
+  // 화면설계서의 '서브 타이틀'과 '하단 텍스트'를 포함하기 위해 text 필드 추가
+  // API 명세와 다를 경우 백엔드와 협의가 필요합니다.
+  title?: string | null; 
+  bottom_text?: string | null;
+}
+
+/**
+ * 관리자용: 스테이지 해금 설정 (PUT /admin/stages/{stageId}/unlock)
+ */
+export const updateUnlockConfig = async ({
+  stageId,
+  payload,
+}: {
+  stageId: string;
+  payload: UnlockConfigPayload;
+}): Promise<void> => { // 이 API는 별도의 응답 본문이 없을 수 있습니다.
+  await apiClient.put(`/admin/stages/${stageId}/unlock`, payload);
 };

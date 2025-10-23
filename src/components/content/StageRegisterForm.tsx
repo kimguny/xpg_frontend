@@ -221,7 +221,7 @@ export default function StageRegisterForm({ contentId, stageId, stageNo }: Stage
 
             {activeTab === 1 && <HintSettingsTab stageId={stageId} />}
             {activeTab === 2 && <PuzzleSettingsTab stageId={stageId} />}
-            {activeTab === 3 && <UnlockSettingsTab />}
+            {activeTab === 3 && <UnlockSettingsTab stageId={stageId}/>}
             
             <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', pt: 3, mt: 3, borderTop: '1px solid', borderColor: 'divider' }}>
               <Button variant="outlined">미리보기</Button>
