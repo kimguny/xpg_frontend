@@ -2,6 +2,7 @@ import apiClient from '@/utils/apiClient';
 import { LoginRequest, LoginResponse } from '@/types/auth';
 import { ApiErrorResponse } from '@/types/api'; // 새로 정의된 타입 임포트
 import axios from 'axios';
+import { User } from '@/types/auth';
 
 // API 명세: 4.1 인증/Auth(App) - POST /auth/login
 
@@ -62,4 +63,14 @@ export const refreshToken = async (refreshToken: string): Promise<{ accessToken:
         }
         throw error;
     }
+};
+
+/**
+ * API 명세: 4.2 Me(App) - GET /me
+ * 현재 로그인된 사용자의 프로필 정보를 가져옵니다.
+ * @returns User 정보를 반환합니다.
+ */
+export const getMyProfile = async (): Promise<User> => {
+  const response = await apiClient.get<User>('/me');
+  return response.data;
 };

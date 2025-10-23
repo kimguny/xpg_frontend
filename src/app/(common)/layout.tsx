@@ -1,7 +1,12 @@
 import LayoutComponent from "@/components/layout/MainLayout";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import React from "react";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  // 사이드바가 있는 레이아웃으로 한번 더 감쌈
-  return <LayoutComponent>{children}</LayoutComponent>;
+  return (
+    // 2. ProtectedRoute로 전체 레이아웃을 감싸줍니다.
+    <ProtectedRoute>
+      <LayoutComponent>{children}</LayoutComponent>
+    </ProtectedRoute>
+  );
 }

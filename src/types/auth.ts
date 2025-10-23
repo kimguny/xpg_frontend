@@ -25,11 +25,3 @@ export interface LoginResponse {
     accessToken: string;
     user: User;
 }
-
-// Recoil 상태를 위한 타입
-export interface AuthState {
-    user: User | null;
-    isAuthenticated: boolean;
-    isLoading: boolean;
-    error: string | null;
-}

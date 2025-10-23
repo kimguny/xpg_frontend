@@ -11,7 +11,6 @@ const apiClient: AxiosInstance = axios.create({
   withCredentials: true,
 });
 
-// 1. 요청 인터셉터
 apiClient.interceptors.request.use(
   (config) => {
     const token = getAuthToken();
@@ -25,10 +24,8 @@ apiClient.interceptors.request.use(
   }
 );
 
-// ✨ 1. 로그아웃이 이미 처리 중인지 확인하는 플래그를 추가합니다.
 let isLoggingOut = false;
 
-// 2. 응답 인터셉터
 apiClient.interceptors.response.use(
     (response) => response,
     (error) => {
@@ -36,10 +33,7 @@ apiClient.interceptors.response.use(
         const isLoginAttempt = error.config?.url?.includes('/auth/login');
 
         if ((status === 401 || status === 403) && !isLoginAttempt) {
-            
-            // ✨ 2. 로그아웃이 아직 처리되지 않았을 때만 아래 로직을 실행합니다.
             if (!isLoggingOut) {
-                // ✨ 3. 로그아웃 처리를 시작한다고 플래그를 설정합니다.
                 isLoggingOut = true;
 
                 console.error(`Request failed with status ${status}. Token may be expired or invalid. Initiating auto-logout.`);
@@ -50,8 +44,14 @@ apiClient.interceptors.response.use(
                     alert("인증 정보가 만료되었거나 유효하지 않습니다. 다시 로그인해주세요.");
                     window.location.href = '/login'; 
                 }
+
+                // ✨ 1. 인증 오류는 여기서 처리하고, 더 이상 에러를 전파하지 않습니다.
+                // 이렇게 하면 react-query가 이 에러를 다시 처리하지 않습니다.
+                return new Promise(() => {}); 
             }
         }
+
+        // ✨ 2. 인증 오류가 아닌 다른 모든 에러는 정상적으로 전파합니다.
         return Promise.reject(error);
     }
 );
