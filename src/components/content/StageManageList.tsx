@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Box,
@@ -14,128 +13,61 @@ import {
   TableHead,
   TableRow,
   Chip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  CircularProgress,
 } from '@mui/material';
+import { useGetStages } from '@/hooks/query/useGetStages';
+import { useGetContentById } from '@/hooks/query/useGetContentById'; // 콘텐츠 정보 조회를 위한 훅 추가
+import { Stage } from '@/lib/api/admin';
 
-interface Stage {
-  no: number;
-  name: string;
-  hints: number;
-  puzzles: number;
-  nfc: number;
-  status: 'completed' | 'incomplete' | 'hidden';
-  serviceStatus: 'active' | 'inactive';
-}
-
+// Props를 contentId만 받도록 수정
 interface StageManageListProps {
   contentId: string;
 }
 
 export default function StageManageList({ contentId }: StageManageListProps) {
   const router = useRouter();
-  const [confirmDialog, setConfirmDialog] = useState<{
-    open: boolean;
-    type: 'edit' | 'copy' | 'delete' | null;
-    stage: Stage | null;
-  }>({
-    open: false,
-    type: null,
-    stage: null,
+
+  // 1. 스테이지 목록과 콘텐츠 상세 정보를 각각 API로 불러옵니다.
+  const { data: stages, isLoading: isLoadingStages } = useGetStages(contentId);
+  const { data: content, isLoading: isLoadingContent } = useGetContentById(contentId);
+
+  // 두 API 호출이 모두 끝나야 로딩이 완료된 것으로 간주합니다.
+  const isLoading = isLoadingStages || isLoadingContent;
+
+  const totalStages = content?.stage_count || 0;
+  const contentName = content?.title || '';
+
+  const stageSlots = Array.from({ length: totalStages }, (_, i) => i + 1);
+
+  const displayStages = stageSlots.map(stageNumber => {
+    const existingStage = stages?.find(s => s.stage_no === stageNumber.toString());
+
+    if (existingStage) {
+      return {
+        ...existingStage,
+        isRegistered: true,
+      };
+    } else {
+      return {
+        id: `new-${stageNumber}`,
+        stage_no: stageNumber.toString(),
+        title: '(미등록)',
+        isRegistered: false,
+        uses_nfc: false,
+        is_hidden: false,
+        is_open: false,
+      } as Stage & { isRegistered: boolean };
+    }
   });
-
-  // 임시 데이터
-  const contentName = '목포의 눈물';
-  const totalStages = 10;
-  
-  const [stages, setStages] = useState<Stage[]>([
-    {
-      no: 1,
-      name: '항구의 시작',
-      hints: 2,
-      puzzles: 1,
-      nfc: 3,
-      status: 'completed',
-      serviceStatus: 'active',
-    },
-    {
-      no: 2,
-      name: '미등록',
-      hints: 0,
-      puzzles: 0,
-      nfc: 0,
-      status: 'incomplete',
-      serviceStatus: 'inactive',
-    },
-    {
-      no: 3,
-      name: '히든 스테이지',
-      hints: 0,
-      puzzles: 0,
-      nfc: 0,
-      status: 'hidden',
-      serviceStatus: 'inactive',
-    },
-  ]);
-
-  const handleAction = (type: 'edit' | 'copy' | 'delete', stage: Stage) => {
-    setConfirmDialog({ open: true, type, stage });
-  };
-
-  const handleConfirm = () => {
-    const { type, stage } = confirmDialog;
-    if (!stage) return;
-
-    switch (type) {
-      case 'edit':
-        router.push(`/save/content/stage/${contentId}/${stage.no}/edit`);
-        break;
-      case 'copy':
-        console.log('Copy:', stage);
-        break;
-      case 'delete':
-        setStages(stages.filter(s => s.no !== stage.no));
-        break;
-    }
-    setConfirmDialog({ open: false, type: null, stage: null });
-  };
-
-  const handleRegister = (stageNo: number) => {
-    router.push(`/save/content/stage/${contentId}/${stageNo}/register`);
-  };
-
-  const getStatusLabel = (status: Stage['status']) => {
-    switch (status) {
-      case 'completed':
-        return '등록 완료';
-      case 'incomplete':
-        return '미등록';
-      case 'hidden':
-        return '히든 스테이지';
-    }
-  };
-
-  const getStatusColor = (status: Stage['status']) => {
-    switch (status) {
-      case 'completed':
-        return 'success';
-      case 'incomplete':
-        return 'default';
-      case 'hidden':
-        return 'warning';
-    }
-  };
 
   return (
     <Box>
-      {/* 헤더 */}
       <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Box>
           <Typography variant="h5" sx={{ fontWeight: 'bold', mb: 1 }}>
             스테이지 관리
           </Typography>
+          {/* API로 불러온 데이터를 사용합니다. */}
           <Typography variant="body2" color="text.secondary">
             메인 콘텐츠: {contentName}
           </Typography>
@@ -152,7 +84,7 @@ export default function StageManageList({ contentId }: StageManageListProps) {
       </Box>
 
       <Card sx={{ boxShadow: 1 }}>
-        <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+        <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
             스테이지 목록
           </Typography>
@@ -173,114 +105,64 @@ export default function StageManageList({ contentId }: StageManageListProps) {
               </TableRow>
             </TableHead>
             <TableBody>
-              {stages.map((stage) => (
-                <TableRow key={stage.no} sx={{ '&:hover': { bgcolor: 'grey.50' } }}>
-                  <TableCell>{stage.no}</TableCell>
-                  <TableCell>{stage.name}</TableCell>
-                  <TableCell>
-                    {stage.hints > 0 ? (
-                      <Box sx={{ display: 'flex', gap: 0.5 }}>
-                        <Chip label={`힌트${stage.hints}`} size="small" />
-                      </Box>
-                    ) : (
-                      <Typography variant="body2" color="text.secondary">-</Typography>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {stage.puzzles > 0 ? (
-                      <Chip label={`퍼즐${stage.puzzles}`} size="small" />
-                    ) : (
-                      <Typography variant="body2" color="text.secondary">-</Typography>
-                    )}
-                  </TableCell>
-                  <TableCell>{stage.nfc > 0 ? stage.nfc : '-'}</TableCell>
-                  <TableCell>
-                    <Chip
-                      label={getStatusLabel(stage.status)}
-                      size="small"
-                      color={getStatusColor(stage.status)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="body2">
-                        {stage.serviceStatus === 'active' ? '● 활성' : '○ 비활성'}
-                      </Typography>
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    {stage.status === 'completed' ? (
-                      <Box sx={{ display: 'flex', gap: 1 }}>
-                        <Button
-                          variant="text"
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={8} align="center"><CircularProgress /></TableCell>
+                </TableRow>
+              ) : (
+                displayStages.map((stage) => (
+                  <TableRow key={stage.id} sx={{ '&:hover': { bgcolor: 'grey.50' } }}>
+                    <TableCell>{stage.stage_no}</TableCell>
+                    <TableCell>{stage.title}</TableCell>
+                    <TableCell>-</TableCell>
+                    <TableCell>-</TableCell>
+                    <TableCell>{stage.uses_nfc ? '사용' : '-'}</TableCell>
+                    <TableCell>
+                      {stage.isRegistered ? (
+                        <Chip
+                          label={stage.is_hidden ? '히든' : '일반'}
                           size="small"
-                          onClick={() => handleAction('edit', stage)}
-                          sx={{ minWidth: 50 }}
+                          color={stage.is_hidden ? 'warning' : 'default'}
+                        />
+                      ) : (
+                        <Chip label="미등록" size="small" />
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {stage.isRegistered ? (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Typography variant="body2" color={stage.is_open ? 'green' : 'text.secondary'}>
+                            {stage.is_open ? '● 활성' : '○ 비활성'}
+                          </Typography>
+                        </Box>
+                      ) : null}
+                    </TableCell>
+                    <TableCell>
+                      {stage.isRegistered ? (
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          onClick={() => router.push(`/save/content/stage/${contentId}/${stage.stage_no}/edit`)}
                         >
                           수정
                         </Button>
-                        <Typography sx={{ color: 'text.secondary' }}>|</Typography>
+                      ) : (
                         <Button
-                          variant="text"
+                          variant="contained"
                           size="small"
-                          onClick={() => handleAction('copy', stage)}
-                          sx={{ minWidth: 50 }}
+                          onClick={() => router.push(`/save/content/stage/${contentId}/${stage.stage_no}/register`)}
                         >
-                          복제
+                          등록
                         </Button>
-                        <Typography sx={{ color: 'text.secondary' }}>|</Typography>
-                        <Button
-                          variant="text"
-                          size="small"
-                          color="error"
-                          onClick={() => handleAction('delete', stage)}
-                          sx={{ minWidth: 50 }}
-                        >
-                          삭제
-                        </Button>
-                      </Box>
-                    ) : (
-                      <Button
-                        variant="contained"
-                        size="small"
-                        onClick={() => handleRegister(stage.no)}
-                      >
-                        등록
-                      </Button>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </TableContainer>
       </Card>
-
-      {/* 확인 다이얼로그 */}
-      <Dialog open={confirmDialog.open} onClose={() => setConfirmDialog({ open: false, type: null, stage: null })}>
-        <DialogTitle>
-          {confirmDialog.type === 'edit' && '스테이지 수정'}
-          {confirmDialog.type === 'copy' && '스테이지 복제'}
-          {confirmDialog.type === 'delete' && '스테이지 삭제'}
-        </DialogTitle>
-        <DialogContent>
-          <Typography>
-            [{confirmDialog.stage?.name}]을(를) 
-            {confirmDialog.type === 'edit' && ' 수정'}
-            {confirmDialog.type === 'copy' && ' 복제'}
-            {confirmDialog.type === 'delete' && ' 삭제'}
-            하시겠습니까?
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmDialog({ open: false, type: null, stage: null })}>
-            취소
-          </Button>
-          <Button onClick={handleConfirm} variant="contained">
-            확인
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 }

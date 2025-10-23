@@ -158,3 +158,26 @@ export const updateAdminContent = async ({
   const response = await apiClient.patch<Content>(`/admin/contents/${contentId}`, payload);
   return response.data;
 };
+
+// Stage 타입 (StageResponse 스키마 기준)
+export interface Stage {
+  id: string;
+  content_id: string;
+  parent_stage_id: string | null;
+  stage_no: string;
+  title: string;
+  description: string | null;
+  uses_nfc: boolean;
+  is_hidden: boolean;
+  is_open: boolean;
+  created_at: string;
+  // ... 그 외 필요한 필드들
+}
+
+/**
+ * 관리자용: 특정 콘텐츠의 스테이지 목록 조회 (GET /admin/stages/by-content/{contentId})
+ */
+export const getAdminStages = async (contentId: string): Promise<Stage[]> => {
+  const response = await apiClient.get<Stage[]>(`/admin/stages/by-content/${contentId}`);
+  return response.data;
+};
