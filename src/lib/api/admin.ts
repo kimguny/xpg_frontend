@@ -258,3 +258,48 @@ export const updateAdminStage = async ({
   const response = await apiClient.patch<Stage>(`/admin/stages/${stageId}`, payload);
   return response.data;
 };
+
+// 힌트 생성을 위한 Request Body 타입 (HintCreate 스키마 기반)
+export interface HintCreatePayload {
+  preset: string;
+  order_no: number;
+  text_blocks: string[];
+  cooldown_sec?: number;
+  reward_coin?: number;
+  nfc_id?: string | null;
+}
+
+// 힌트 응답 타입 (HintResponse 스키마 기반)
+export interface Hint {
+  id: string;
+  stage_id: string;
+  preset: string;
+  order_no: number;
+  text_block_1: string | null;
+  text_block_2: string | null;
+  text_block_3: string | null;
+  // ... 그 외 nfc, images 등 필드
+}
+
+/**
+ * 관리자용: 특정 스테이지의 모든 힌트 조회 (GET /admin/stages/{stageId}/hints)
+ * (백엔드에 해당 API가 존재한다고 가정합니다)
+ */
+export const getAdminHintsForStage = async (stageId: string): Promise<Hint[]> => {
+  const response = await apiClient.get<Hint[]>(`/admin/stages/${stageId}/hints`);
+  return response.data;
+};
+
+/**
+ * 관리자용: 새 힌트 생성 (POST /admin/stages/{stageId}/hints)
+ */
+export const createAdminHint = async ({
+  stageId,
+  payload,
+}: {
+  stageId: string;
+  payload: HintCreatePayload;
+}): Promise<Hint> => {
+  const response = await apiClient.post<Hint>(`/admin/stages/${stageId}/hints`, payload);
+  return response.data;
+};

@@ -142,9 +142,9 @@ export default function StageRegisterForm({ contentId, stageId, stageNo }: Stage
 
       <Tabs value={activeTab} onChange={(e, v) => setActiveTab(v)} sx={{ mb: 2 }}>
         <Tab label="기본 정보" />
-        <Tab label="힌트 설정" />
-        <Tab label="퍼즐 설정" />
-        <Tab label="해금 설정" />
+        <Tab label="힌트 설정" disabled={!isEditMode} />
+        <Tab label="퍼즐 설정" disabled={!isEditMode} />
+        <Tab label="해금 설정" disabled={!isEditMode} />
       </Tabs>
 
       <Card sx={{ boxShadow: 1 }}>
@@ -202,7 +202,7 @@ export default function StageRegisterForm({ contentId, stageId, stageNo }: Stage
               </Box>
             )}
 
-            {activeTab === 1 && <HintSettingsTab />}
+            {activeTab === 1 && <HintSettingsTab stageId={stageId} />}
             {activeTab === 2 && <PuzzleSettingsTab />}
             {activeTab === 3 && <UnlockSettingsTab />}
             
