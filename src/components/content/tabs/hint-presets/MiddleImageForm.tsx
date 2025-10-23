@@ -1,6 +1,6 @@
 'use client';
 
-import { Box, TextField, Typography } from '@mui/material';
+import { Box, TextField } from '@mui/material';
 import { Controller, Control } from 'react-hook-form';
 import { FullHintFormData } from '../HintSettingsTab';
 

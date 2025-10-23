@@ -159,6 +159,15 @@ export const updateAdminContent = async ({
   return response.data;
 };
 
+export interface PuzzleConfigData {
+  image_url?: string;
+  image_desc?: string;
+  text?: string;
+  answer_style: '4_digits' | '6_digits' | 'text';
+  answer: string;
+  bonus_coin?: number;
+}
+
 // Stage 타입 (StageResponse 스키마 기준)
 export interface Stage {
   id: string;
@@ -184,9 +193,12 @@ export interface Stage {
   background_image_url: string | null;
   thumbnail_url: string | null;
   meta: object | null;
+  puzzles?: {
+    style: string;
+    showWhen: string;
+    config: PuzzleConfigData;
+  }[];
   created_at: string;
-  hint_count: number;
-  puzzle_count: number;
 }
 
 /**
@@ -301,5 +313,46 @@ export const createAdminHint = async ({
   payload: HintCreatePayload;
 }): Promise<Hint> => {
   const response = await apiClient.post<Hint>(`/admin/stages/${stageId}/hints`, payload);
+  return response.data;
+};
+// 1. 요청 시 보내는 데이터의 타입 (기존과 동일)
+export interface PuzzlePayload {
+  puzzles: {
+    style: 'image' | 'text';
+    showWhen: 'always' | 'after_clear';
+    config: {
+      image_url?: string;
+      image_desc?: string;
+      text?: string;
+      answer_style: '4_digits' | '6_digits' | 'text';
+      answer: string;
+      bonus_coin?: number;
+    };
+  }[];
+}
+
+// 2. API가 응답으로 돌려주는 데이터의 타입 (새로 정의)
+export interface PuzzleUpdateResponse {
+  stage_id: string;
+  puzzles: {
+    id: string; // ✨ 서버에서 생성된 고유 ID가 포함됩니다.
+    style: string;
+    show_when: string;
+    config: object;
+  }[];
+}
+
+/**
+ * 관리자용: 스테이지 퍼즐 설정 (PUT /admin/stages/{stageId}/puzzles)
+ */
+export const updateStagePuzzles = async ({
+  stageId,
+  payload,
+}: {
+  stageId: string;
+  payload: PuzzlePayload;
+  // ✨ 3. 반환 타입을 PuzzleUpdateResponse로 지정합니다.
+}): Promise<PuzzleUpdateResponse> => { 
+  const response = await apiClient.put<PuzzleUpdateResponse>(`/admin/stages/${stageId}/puzzles`, payload);
   return response.data;
 };

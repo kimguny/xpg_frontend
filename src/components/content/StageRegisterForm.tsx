@@ -17,7 +17,6 @@ import {
   Tabs,
   Tab,
   CircularProgress,
-  FormLabel,
 } from '@mui/material';
 import { useCreateStage } from '@/hooks/mutation/useCreateStage';
 import { useUpdateStage } from '@/hooks/mutation/useUpdateStage';
@@ -190,7 +189,7 @@ export default function StageRegisterForm({ contentId, stageId, stageNo }: Stage
                     <Controller name="radius_m" control={control} render={({ field }) => (<TextField {...field} type="number" label="반경 (m)" sx={{ width: 200, mt: 1 }} />)} />
                   )}
                   {unlockCondition === 'stage' && (
-                     <Controller name="unlock_stage_id" control={control} render={({ field }) => (<TextField {...field} label="완료해야 할 스테이지 ID" sx={{ width: 300, mt: 1 }} />)} />
+                    <Controller name="unlock_stage_id" control={control} render={({ field }) => (<TextField {...field} label="완료해야 할 스테이지 ID" sx={{ width: 300, mt: 1 }} />)} />
                   )}
                 </Box>
 
@@ -199,8 +198,8 @@ export default function StageRegisterForm({ contentId, stageId, stageNo }: Stage
                 
                 <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>스테이지 클리어 조건</Typography>
                 <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 3 }}>
-                   <Controller name="clear_time_attack_sec" control={control} render={({ field }) => (<TextField {...field} type="number" label="타임어택 (초)" sx={{ width: 150 }} />)} />
-                   <Controller name="clear_need_nfc_count" control={control} render={({ field }) => (<TextField {...field} type="number" label="필요 NFC 태그 수" sx={{ width: 150 }} />)} />
+                  <Controller name="clear_time_attack_sec" control={control} render={({ field }) => (<TextField {...field} type="number" label="타임어택 (초)" sx={{ width: 150 }} />)} />
+                  <Controller name="clear_need_nfc_count" control={control} render={({ field }) => (<TextField {...field} type="number" label="필요 NFC 태그 수" sx={{ width: 150 }} />)} />
                 </Box>
 
                 <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>히든 스테이지 설정</Typography>
@@ -221,7 +220,7 @@ export default function StageRegisterForm({ contentId, stageId, stageNo }: Stage
             )}
 
             {activeTab === 1 && <HintSettingsTab stageId={stageId} />}
-            {activeTab === 2 && <PuzzleSettingsTab />}
+            {activeTab === 2 && <PuzzleSettingsTab stageId={stageId} />}
             {activeTab === 3 && <UnlockSettingsTab />}
             
             <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', pt: 3, mt: 3, borderTop: '1px solid', borderColor: 'divider' }}>
