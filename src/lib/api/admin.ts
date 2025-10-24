@@ -8,6 +8,12 @@ export interface PaginatedResponse<T> {
   total: number;
 }
 
+export interface UserProfile {
+  name?: string;
+  phone?: string;
+  points?: number;
+}
+
 // User 타입 (UserResponse 스키마 기준)
 export interface User {
   id: string;
@@ -17,7 +23,7 @@ export interface User {
   email_verified: boolean;
   email_verified_at: string | null;
   status: string;
-  profile: object | null;
+  profile: UserProfile | null;
   created_at: string;
   last_active_at: string | null;
 }
@@ -61,12 +67,29 @@ export interface NfcTag {
   category: string | null;
 }
 
+// 사용자 목록 조회를 위한 파라미터 타입
+export interface GetUsersParams {
+  q?: string;
+  status?: 'active' | 'blocked' | 'deleted';
+  page?: number;
+  size?: number;
+  sort?: string;
+}
+
 /**
- * 관리자용: 전체 사용자 목록을 가져옵니다. (GET /admin/users)
+ * 관리자용: 사용자 목록을 검색 조건과 함께 가져옵니다. (GET /admin/users)
  */
-export const getAdminUsers = async (): Promise<PaginatedResponse<User>> => {
-  const response = await apiClient.get<PaginatedResponse<User>>('/admin/users');
+export const getAdminUsers = async (params: GetUsersParams = {}): Promise<PaginatedResponse<User>> => {
+  const response = await apiClient.get<PaginatedResponse<User>>('/admin/users', { params });
   return response.data;
+};
+
+/**
+ * 관리자용: 특정 사용자 삭제 (DELETE /admin/users/{userId})
+ * (백엔드에 해당 API가 존재한다고 가정합니다)
+ */
+export const deleteAdminUser = async (userId: string): Promise<void> => {
+  await apiClient.delete(`/admin/users/${userId}`);
 };
 
 /**

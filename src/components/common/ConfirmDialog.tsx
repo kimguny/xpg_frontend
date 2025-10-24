@@ -16,6 +16,7 @@ interface ConfirmDialogProps {
   onConfirm: () => void;
   title: string;
   message: string;
+  isPending?: boolean;
 }
 
 export default function ConfirmDialog({
