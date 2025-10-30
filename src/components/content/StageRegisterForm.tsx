@@ -97,49 +97,48 @@ export default function StageRegisterForm({ contentId, stageId, stageNo }: Stage
   }, [existingStage, reset]);
 
 const onSubmit: SubmitHandler<StageFormData> = (data) => {
-    // 1. data에서 폼 전용 필드와 API 전송용 필드를 분리합니다.
+    // (data 분리 로직은 동일)
     const {
       latitude,
       longitude,
       radius_m,
       unlockCondition,
-      ...restOfData // title, description 등 StageCreate와 일치하는 필드들
+      ...restOfData 
     } = data;
 
-    // 2. ge=1 (1 이상) 제약이 있는 필드를 안전하게 변환합니다.
+    // (숫자 변환 로직은 동일)
     const timeLimit = Number(data.time_limit_min);
     const finalTimeLimit = timeLimit >= 1 ? timeLimit : null;
-
     const timeAttack = Number(data.clear_time_attack_sec);
     const finalTimeAttack = timeAttack >= 1 ? timeAttack : null;
-
-    // 3. ge=0 (0 이상) 제약이 있는 필드를 안전하게 변환합니다.
     const nfcCount = Number(data.clear_need_nfc_count);
-    // (Number('')는 0이 되므로, 0 이상인 nfcCount는 이 로직으로도 OK)
     const finalNfcCount = nfcCount >= 0 ? nfcCount : null;
 
     // 4. 백엔드(StageCreate) 스키마와 정확히 일치하는 payload를 생성합니다.
     const payload: StageCreatePayload = {
-      ...restOfData, // title, description, stage_no 등 일치하는 필드
+      ...restOfData, 
+      stage_no: data.stage_no,
       
-      // ge=1 필드 처리
       time_limit_min: finalTimeLimit,
       clear_time_attack_sec: finalTimeAttack,
       
-      // ge=0 필드 처리
-      clear_need_nfc_count: finalNfcCount,
-      
-      // 'location' 객체로 중첩
+      // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+      // [수정] 생성(isEditMode=false) 시에는 DB 트리거 오류 방지를 위해 null을 전송합니다.
+      clear_need_nfc_count: isEditMode ? finalNfcCount : null,
+      // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
       location: latitude && longitude ? {
         lat: Number(latitude),
         lon: Number(longitude),
         radius_m: radius_m ? Number(radius_m) : null,
       } : null,
       
-      // 'unlockCondition'을 백엔드 필드로 변환
       unlock_stage_id: unlockCondition === 'stage' ? data.unlock_stage_id : null,
       unlock_on_enter_radius: unlockCondition === 'location',
     };
+    
+    // (디버깅용 console.log는 이제 삭제하셔도 됩니다)
+    // console.log("[DEBUG] API Payload:", JSON.stringify(payload, null, 2));
 
     if (isEditMode) {
       updateMutation.mutate(payload);
