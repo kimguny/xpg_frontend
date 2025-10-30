@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -9,7 +9,25 @@ import {
   Button,
   Box,
 } from '@mui/material';
+import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
 
+// 지도 컨테이너 스타일 (기존 sx와 동일하게 맞춤)
+const containerStyle = {
+  width: '100%',
+  height: '60vh',
+  minHeight: '400px',
+};
+
+// 네이버 지도에서 사용했던 초기 중심 좌표
+const initialCenter = {
+  lat: 34.8118,
+  lng: 126.3920,
+};
+
+// Google Maps API에서 사용할 라이브러리 (필요시 'places' 등 추가)
+const libraries: ('places' | 'drawing' | 'geometry' | 'visualization')[] = [];
+
+// Props 인터페이스는 기존과 동일
 interface MapDialogProps {
   open: boolean;
   onClose: () => void;
@@ -17,126 +35,119 @@ interface MapDialogProps {
 }
 
 export default function MapDialog({ open, onClose, onLocationSelect }: MapDialogProps) {
-  const mapElement = useRef<HTMLDivElement | null>(null);
-  const mapInstance = useRef<naver.maps.Map | null>(null);
-  const markerInstance = useRef<naver.maps.Marker | null>(null);
-  const eventListener = useRef<naver.maps.MapEventListener | null>(null);
+  // 마커 위치 상태 (기존과 동일)
   const [markerPosition, setMarkerPosition] = useState<{ lat: number; lng: number } | null>(null);
+  
+  // 지도 인스턴스 참조 (리사이징을 위해)
+  const mapInstanceRef = useRef<google.maps.Map | null>(null);
 
-  useEffect(() => {
-    if (open && mapElement.current) {
-      // 네이버 지도 스크립트 로드 대기
-      const initMap = () => {
-        if (!window.naver || !window.naver.maps) {
-          setTimeout(initMap, 100);
-          return;
-        }
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY;
 
-        if (!mapElement.current) return;
+  const { isLoaded, loadError } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: apiKey || "",
+    libraries: libraries,
+  });
 
-        // 이미 지도가 생성되었다면 리사이즈만 수행
-        if (mapInstance.current) {
-          setTimeout(() => {
-            if (mapInstance.current) {
-              window.naver.maps.Event.trigger(mapInstance.current, 'resize');
-              mapInstance.current.setCenter(new window.naver.maps.LatLng(34.8118, 126.3920));
-            }
-          }, 300); // 300ms로 증가
-          return;
-        }
-
-        // 지도 생성
-        const mapOptions: naver.maps.MapOptions = {
-          center: new window.naver.maps.LatLng(34.8118, 126.3920),
-          zoom: 15,
-        };
-
-        mapInstance.current = new window.naver.maps.Map(mapElement.current, mapOptions);
-
-        // 클릭 이벤트 리스너
-        eventListener.current = window.naver.maps.Event.addListener(
-          mapInstance.current,
-          'click',
-          (e: naver.maps.PointerEvent) => {
-            const newPos = { lat: e.coord.y, lng: e.coord.x };
-            setMarkerPosition(newPos);
-
-            if (markerInstance.current) {
-              markerInstance.current.setPosition(e.coord);
-            } else {
-              markerInstance.current = new window.naver.maps.Marker({
-                position: e.coord,
-                map: mapInstance.current,
-              });
-            }
-          }
-        );
+  // 2. 지도 클릭 핸들러
+  const handleMapClick = (e: google.maps.MapMouseEvent) => {
+    if (e.latLng) {
+      const newPos = {
+        lat: e.latLng.lat(),
+        lng: e.latLng.lng(),
       };
-
-      // Dialog 열림 애니메이션 후 지도 초기화
-      setTimeout(initMap, 200);
+      setMarkerPosition(newPos);
     }
+  };
 
-    // Dialog가 닫힐 때 마커 위치 초기화
-    if (!open) {
-      setMarkerPosition(null);
-      if (markerInstance.current) {
-        markerInstance.current.setMap(null);
-        markerInstance.current = null;
-      }
+  // 3. 지도 로드 시 인스턴스 저장
+  const onMapLoad = (map: google.maps.Map) => {
+    mapInstanceRef.current = map;
+    map.setCenter(initialCenter); // 로드 완료 후 중앙 설정
+  };
+
+  // 4. 지도 언마운트 시 인스턴스 정리
+  const onMapUnmount = () => {
+    mapInstanceRef.current = null;
+  };
+
+  // 5. 다이얼로그가 완전히 열린 후 지도 리사이즈 (중요)
+  // (기존 Naver Map 코드와 동일한 원리)
+  const handleResize = () => {
+    if (isLoaded && mapInstanceRef.current) {
+      setTimeout(() => {
+        if (mapInstanceRef.current) {
+          google.maps.event.trigger(mapInstanceRef.current, 'resize');
+          mapInstanceRef.current.setCenter(initialCenter);
+        }
+      }, 300); // 300ms 지연 (기존과 동일)
     }
-  }, [open]);
+  };
 
-  // 컴포넌트 언마운트 시 정리
-  useEffect(() => {
-    return () => {
-      if (eventListener.current) {
-        eventListener.current.remove();
-      }
-      if (markerInstance.current) {
-        markerInstance.current.setMap(null);
-      }
-    };
-  }, []);
-
+  // 6. 적용하기 핸들러 (기존과 동일)
   const handleApply = () => {
     if (markerPosition) {
       onLocationSelect(markerPosition);
     }
+    setMarkerPosition(null); // 상태 초기화
     onClose();
   };
 
+  // 7. 취소 핸들러 (상태 초기화 추가)
+  const handleClose = () => {
+    setMarkerPosition(null); // 상태 초기화
+    onClose();
+  };
+
+  // 8. 로딩 및 에러 처리
+  const renderMapContent = () => {
+    if (!apiKey) {
+      return (
+        <Box sx={containerStyle}>
+          지도를 불러오는 중 오류가 발생했습니다. API 키를 확인해 주세요.
+        </Box>
+      );
+    }
+    if (!isLoaded) {
+      return (
+        <Box sx={{ ...containerStyle, backgroundColor: '#e5e3df' }}>
+          지도 로딩 중...
+        </Box>
+      );
+    }
+    return (
+      <GoogleMap
+        mapContainerStyle={containerStyle}
+        center={initialCenter}
+        zoom={15}
+        onLoad={onMapLoad}
+        onUnmount={onMapUnmount}
+        onClick={handleMapClick}
+      >
+        {/* markerPosition 상태에 따라 마커를 선언적으로 렌더링 */}
+        {markerPosition && (
+          <Marker position={markerPosition} />
+        )}
+      </GoogleMap>
+    );
+  };
+
   return (
-    <Dialog 
-      open={open} 
-      onClose={onClose} 
-      fullWidth 
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      fullWidth
       maxWidth="md"
-      // Dialog가 열릴 때 지도 크기 재조정
       TransitionProps={{
-        onEntered: () => {
-          if (mapInstance.current && window.naver) {
-            setTimeout(() => {
-              window.naver.maps.Event.trigger(mapInstance.current!, 'resize');
-            }, 300); // 100ms에서 300ms로 증가
-          }
-        }
+        onEntered: handleResize, // 다이얼로그가 열린 후 리사이즈 실행
       }}
     >
       <DialogTitle>지도에서 위치 선택</DialogTitle>
-      <DialogContent sx={{ pt: 2 }}> {/* padding-top 추가 */}
-        <Box 
-          ref={mapElement} 
-          sx={{ 
-            width: '100%', 
-            height: '60vh',
-            minHeight: '400px',
-            backgroundColor: '#e5e3df', // 지도 로딩 중 배경색
-          }} 
-        />
+      <DialogContent sx={{ pt: 2 }}>
+        {renderMapContent()}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>취소</Button>
+        <Button onClick={handleClose}>취소</Button>
         <Button onClick={handleApply} variant="contained" disabled={!markerPosition}>
           적용하기
         </Button>

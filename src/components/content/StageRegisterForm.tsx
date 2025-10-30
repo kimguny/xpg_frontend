@@ -96,21 +96,49 @@ export default function StageRegisterForm({ contentId, stageId, stageNo }: Stage
     }
   }, [existingStage, reset]);
 
-  const onSubmit: SubmitHandler<StageFormData> = (data) => {
-    // 폼 데이터를 실제 API 페이로드로 변환
-    // (빈 문자열을 null로 변환하는 로직은 이미 올바르게 작성되어 있습니다)
+const onSubmit: SubmitHandler<StageFormData> = (data) => {
+    // 1. data에서 폼 전용 필드와 API 전송용 필드를 분리합니다.
+    const {
+      latitude,
+      longitude,
+      radius_m,
+      unlockCondition,
+      ...restOfData // title, description 등 StageCreate와 일치하는 필드들
+    } = data;
+
+    // 2. ge=1 (1 이상) 제약이 있는 필드를 안전하게 변환합니다.
+    const timeLimit = Number(data.time_limit_min);
+    const finalTimeLimit = timeLimit >= 1 ? timeLimit : null;
+
+    const timeAttack = Number(data.clear_time_attack_sec);
+    const finalTimeAttack = timeAttack >= 1 ? timeAttack : null;
+
+    // 3. ge=0 (0 이상) 제약이 있는 필드를 안전하게 변환합니다.
+    const nfcCount = Number(data.clear_need_nfc_count);
+    // (Number('')는 0이 되므로, 0 이상인 nfcCount는 이 로직으로도 OK)
+    const finalNfcCount = nfcCount >= 0 ? nfcCount : null;
+
+    // 4. 백엔드(StageCreate) 스키마와 정확히 일치하는 payload를 생성합니다.
     const payload: StageCreatePayload = {
-      ...data,
-      time_limit_min: data.time_limit_min ? Number(data.time_limit_min) : null,
-      clear_need_nfc_count: data.clear_need_nfc_count ? Number(data.clear_need_nfc_count) : null,
-      clear_time_attack_sec: data.clear_time_attack_sec ? Number(data.clear_time_attack_sec) : null,
-      location: data.latitude && data.longitude ? {
-        lat: Number(data.latitude),
-        lon: Number(data.longitude),
-        radius_m: data.radius_m ? Number(data.radius_m) : null,
+      ...restOfData, // title, description, stage_no 등 일치하는 필드
+      
+      // ge=1 필드 처리
+      time_limit_min: finalTimeLimit,
+      clear_time_attack_sec: finalTimeAttack,
+      
+      // ge=0 필드 처리
+      clear_need_nfc_count: finalNfcCount,
+      
+      // 'location' 객체로 중첩
+      location: latitude && longitude ? {
+        lat: Number(latitude),
+        lon: Number(longitude),
+        radius_m: radius_m ? Number(radius_m) : null,
       } : null,
-      unlock_stage_id: data.unlockCondition === 'stage' ? data.unlock_stage_id : null,
-      unlock_on_enter_radius: data.unlockCondition === 'location',
+      
+      // 'unlockCondition'을 백엔드 필드로 변환
+      unlock_stage_id: unlockCondition === 'stage' ? data.unlock_stage_id : null,
+      unlock_on_enter_radius: unlockCondition === 'location',
     };
 
     if (isEditMode) {
