@@ -19,10 +19,6 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <head>
-        <Script
-          strategy="beforeInteractive"
-          src={`https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID}`}
-        />
       </head>
       <body className={inter.className}>
         <QueryProvider>
