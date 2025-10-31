@@ -54,15 +54,15 @@ export default function Sidebar() {
         { name: '콘텐츠 관리', path: '/save/content/manage' }
       ]
     },
-    {
-      name: '이벤트',
-      path: '/save/events',
-      icon: <Celebration />,
-      subItems: [
-        { name: '이벤트 등록', path: '/save/events/register' },
-        { name: '이벤트 관리', path: '/save/events/manage' },
-      ],
-    },
+    // {
+    //   name: '이벤트',
+    //   path: '/save/events',
+    //   icon: <Celebration />,
+    //   subItems: [
+    //     { name: '이벤트 등록', path: '/save/events/register' },
+    //     { name: '이벤트 관리', path: '/save/events/manage' },
+    //   ],
+    // },
     {
       name: 'NFC',
       path: '/save/nfc',

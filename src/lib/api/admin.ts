@@ -229,6 +229,7 @@ export interface Stage {
     title?: string | null;
   } | null;
   created_at: string;
+  hints?: Hint[];
 }
 
 /**
@@ -320,7 +321,16 @@ export interface Hint {
   text_block_1: string | null;
   text_block_2: string | null;
   text_block_3: string | null;
-  // ... 그 외 nfc, images 등 필드
+  nfc: {
+    id: string;
+    udid: string;
+    tag_name: string;
+  } | null;
+  images: {
+    url: string;
+    alt_text: string | null;
+    order_no: number;
+  }[];
 }
 
 /**

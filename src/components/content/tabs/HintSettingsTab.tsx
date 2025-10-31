@@ -1,10 +1,17 @@
 'use client';
 
-import { Box, Typography, Button, RadioGroup, FormControlLabel, Radio, FormLabel, FormControl, CircularProgress, List, ListItem, ListItemText, TextField } from '@mui/material';
+import { Box, Typography, Button, RadioGroup, FormControlLabel, Radio, FormLabel, FormControl, CircularProgress, List, ListItem, ListItemText, TextField, Select, MenuItem, InputLabel, FormHelperText } from '@mui/material';
 import { useForm, SubmitHandler, Controller } from 'react-hook-form';
-import { useGetHints } from '@/hooks/query/useGetHints';
+import { useQuery } from '@tanstack/react-query';
 import { useCreateHint } from '@/hooks/mutation/useCreateHint';
-import { HintCreatePayload } from '@/lib/api/admin';
+// 1. 필요한 타입과 API 함수를 import합니다.
+import { 
+  HintCreatePayload, 
+  Hint,
+  PaginatedResponse, 
+  NfcTag, 
+  getAdminNfcTags 
+} from '@/lib/api/admin';
 
 // 5개의 프리셋 폼 컴포넌트를 import 합니다.
 import CardSwipeForm from './hint-presets/CardSwipeForm';
@@ -13,11 +20,13 @@ import MiddleImageForm from './hint-presets/MiddleImageForm';
 import TimeAttackForm from './hint-presets/TimeAttackForm';
 import ArCameraForm from './hint-presets/ArCameraForm';
 
+// 2. Props 인터페이스에 `hints: Hint[]`를 추가합니다.
 interface HintSettingsTabProps {
   stageId?: string;
+  hints: Hint[]; 
 }
 
-// 전체 폼 데이터 타입을 export하여 자식 컴포넌트에서도 사용할 수 있게 합니다.
+// 전체 폼 데이터 타입
 export type FullHintFormData = {
   preset: 'cardSwipe' | 'topImage' | 'middleImage' | 'timeAttack' | 'arCamera';
   nfc_id: string | null;
@@ -29,9 +38,17 @@ export type FullHintFormData = {
   arCamera: { imageUrl: string };
 };
 
-export default function HintSettingsTab({ stageId }: HintSettingsTabProps) {
-  const { data: hints, isLoading: isLoadingHints } = useGetHints(stageId);
+// 3. `hints`를 props로 받도록 수정합니다.
+export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps) {
+  // 4. useGetHints 훅을 제거합니다. (데이터는 prop으로 받음)
+  
   const createHintMutation = useCreateHint(stageId);
+
+  // 5. NFC 태그 목록은 계속 여기서 불러옵니다.
+  const { data: nfcData, isLoading: isLoadingNfcTags } = useQuery<PaginatedResponse<NfcTag>>({
+    queryKey: ['adminNfcTags'],
+    queryFn: () => getAdminNfcTags(),
+  });
 
   const { control, handleSubmit, watch, reset } = useForm<FullHintFormData>({
     defaultValues: {
@@ -48,16 +65,12 @@ export default function HintSettingsTab({ stageId }: HintSettingsTabProps) {
 
   const selectedPreset = watch('preset');
 
-  // ✨ 1. onSubmit 로직을 완성합니다. (payload 생성 및 mutate 호출)
+  // '새 힌트 추가' 폼 제출 로직
   const onSubmit: SubmitHandler<FullHintFormData> = (data) => {
-    // API로 보낼 payload를 담을 변수들을 준비합니다.
     let text_blocks: string[] = [];
-    let cooldown_sec = 0; // 타임어택용
-
-    // 선택된 프리셋(data.preset)에 따라 폼 데이터를 가공합니다.
+    let cooldown_sec = 0; 
     switch (data.preset) {
       case 'cardSwipe':
-        // 카드 제목과 내용을 '|' 문자로 합쳐서 text_blocks 배열에 저장합니다.
         text_blocks = data.cardSwipe.cards.map(card => `${card.title || ''}|${card.text || ''}`);
         break;
       case 'topImage':
@@ -71,37 +84,35 @@ export default function HintSettingsTab({ stageId }: HintSettingsTabProps) {
         cooldown_sec = Number(data.timeAttack.timeLimit) || 0;
         break;
       case 'arCamera':
-        // AR 카메라는 텍스트 블록이 없을 수 있습니다. (이미지 URL은 별도 처리 필요)
         text_blocks = [];
         break;
     }
-
-    // 최종 API 페이로드를 조립합니다.
     const payload: HintCreatePayload = {
       preset: data.preset,
-      order_no: (hints?.length || 0) + 1,
+      order_no: (hints?.length || 0) + 1, // `hints` prop을 사용
       reward_coin: Number(data.reward_coin) || 0,
-      nfc_id: data.nfc_id || null,
-      text_blocks: text_blocks.filter(t => t !== '|'), // 내용이 완전히 빈 블록은 제외
+      nfc_id: data.nfc_id || null, 
+      text_blocks: text_blocks.filter(t => t !== '|'), 
       cooldown_sec: cooldown_sec,
     };
     
-    // API 호출을 실행합니다.
     createHintMutation.mutate(payload, {
       onSuccess: () => {
         alert('새로운 힌트가 추가되었습니다.');
-        reset(); // 성공 시 폼 리셋
+        reset(); 
+        // (참고: 목록 실시간 갱신을 위해 queryClient.invalidateQueries 필요)
       },
     });
   };
 
-  if (isLoadingHints) {
+  // 6. isLoadingNfcTags만 확인합니다.
+  if (isLoadingNfcTags) {
     return <CircularProgress />;
   }
   
+  // 7. 프리셋 폼 렌더링 함수 (생략 없이 전체 포함)
   const renderPresetForm = () => {
     switch (selectedPreset) {
-      // ✨ 2. 자식 컴포넌트에는 control prop만 전달하도록 정리합니다.
       case 'cardSwipe':
         return <CardSwipeForm control={control} />;
       case 'topImage':
@@ -120,13 +131,19 @@ export default function HintSettingsTab({ stageId }: HintSettingsTabProps) {
   return (
     <Box>
       <Typography variant="h6" sx={{ mb: 2 }}>힌트 목록</Typography>
+      {/* 8. 힌트 목록을 `hints` prop 기준으로 렌더링합니다. */}
       <List dense sx={{ mb: 4, border: '1px solid', borderColor: 'divider', borderRadius: 1, p: 0 }}>
         {hints && hints.length > 0 ? (
           hints.map((hint, index) => (
-            <ListItem key={hint.id} divider={index < hints.length - 1}>
+            <ListItem 
+              key={hint.id} 
+              divider={index < hints.length - 1}
+              // (참고: 추후 '수정' 기능을 위해 onClick 핸들러 추가 필요)
+              // onClick={() => handleHintSelect(hint)} 
+            >
               <ListItemText 
                 primary={`#${hint.order_no}: ${hint.text_block_1 || '(내용 없음)'}`} 
-                secondary={`프리셋: ${hint.preset}`} 
+                secondary={`프리셋: ${hint.preset} / NFC: ${hint.nfc ? hint.nfc.tag_name : '없음'}`} 
               />
             </ListItem>
           ))
@@ -137,8 +154,9 @@ export default function HintSettingsTab({ stageId }: HintSettingsTabProps) {
         )}
       </List>
       
-      {/* ✨ 3. <form> 태그를 제거하여 중첩 오류를 해결합니다. */}
+      {/* 9. '새 힌트 추가' 폼 */}
       <Box>
+        <Typography variant="h6" sx={{ mb: 3 }}>새 힌트 추가</Typography>
         <FormControl component="fieldset" sx={{ mb: 3 }}>
           <FormLabel component="legend" sx={{ fontWeight: 600 }}>1. 힌트 스타일 설정</FormLabel>
           <Controller name="preset" control={control} render={({ field }) => (
@@ -156,12 +174,39 @@ export default function HintSettingsTab({ stageId }: HintSettingsTabProps) {
         
         <Box sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 2, mt: 3 }}>
           <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>공통 설정</Typography>
-          <Controller name="nfc_id" control={control} render={({ field }) => <TextField {...field} label="연계 NFC ID (선택)" fullWidth sx={{ mb: 2 }} />} />
+          
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel id="nfc-select-label">연계 NFC (선택)</InputLabel>
+            <Controller
+              name="nfc_id"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  {...field}
+                  labelId="nfc-select-label"
+                  label="연계 NFC (선택)"
+                  value={field.value || ''} 
+                >
+                  <MenuItem value="">
+                    <em>선택 안 함</em>
+                  </MenuItem>
+                  {nfcData?.items.map((tag) => (
+                    <MenuItem key={tag.id} value={tag.id}>
+                      {tag.tag_name} (ID: {tag.id.substring(0, 8)}...)
+                    </MenuItem>
+                  ))}
+                </Select>
+              )}
+            />
+            {!nfcData?.items.length && (
+              <FormHelperText>등록된 NFC 태그가 없습니다.</FormHelperText>
+            )}
+          </FormControl>
+
           <Controller name="reward_coin" control={control} render={({ field }) => <TextField {...field} type="number" label="클리어 보상 (코인)" />} />
         </Box>
         
         <Box sx={{ mt: 3 }}>
-          {/* ✨ 4. Button의 type을 "button"으로, onClick 이벤트로 제출 함수를 호출합니다. */}
           <Button 
             type="button" 
             variant="contained" 

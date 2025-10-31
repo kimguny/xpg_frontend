@@ -246,7 +246,7 @@ const onSubmit: SubmitHandler<StageFormData> = (data) => {
               </Box>
             )}
 
-            {activeTab === 1 && <HintSettingsTab stageId={stageId} />}
+            {activeTab === 1 && <HintSettingsTab stageId={stageId} hints={existingStage?.hints || []} />}
             {activeTab === 2 && <PuzzleSettingsTab stageId={stageId} />}
             {activeTab === 3 && <UnlockSettingsTab stageId={stageId}/>}
             

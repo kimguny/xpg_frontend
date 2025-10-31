@@ -112,12 +112,40 @@ export default function StageManageList({ contentId }: StageManageListProps) {
               ) : (
                 displayStages.map((stage) => (
                   <TableRow key={stage.id} sx={{ '&:hover': { bgcolor: 'grey.50' } }}>
-                    <TableCell>{stage.stage_no}</TableCell>
-                    <TableCell>{stage.title}</TableCell>
-                    <TableCell>-</TableCell>
-                    <TableCell>-</TableCell>
-                    <TableCell>{stage.uses_nfc ? '사용' : '-'}</TableCell>
-                    <TableCell>
+                    <TableCell sx={{ verticalAlign: 'top' }}>{stage.stage_no}</TableCell>
+                    <TableCell sx={{ verticalAlign: 'top' }}>{stage.title}</TableCell>
+                    
+                    {/* [수정] 힌트 유형: 힌트 목록을 세로로 나열 */}
+                    <TableCell sx={{ paddingY: 1, verticalAlign: 'top' }}>
+                      {stage.isRegistered && stage.hints && stage.hints.length > 0 ? (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          {stage.hints.map((hint) => (
+                            <Typography key={hint.id} variant="body2" sx={{ whiteSpace: 'nowrap' }}>
+                              #{hint.order_no}: {hint.preset}
+                            </Typography>
+                          ))}
+                        </Box>
+                      ) : (
+                        '-'
+                      )}
+                    </TableCell>
+                    
+                    {/* [수정] 퍼즐: 퍼즐 개수 표시 */}
+                    <TableCell sx={{ verticalAlign: 'top' }}>
+                      {stage.isRegistered && stage.puzzles && stage.puzzles.length > 0
+                        ? `${stage.puzzles.length}개`
+                        : '-'}
+                    </TableCell>
+                    
+                    {/* [수정] NFC: 필요 개수 표시 */}
+                    <TableCell sx={{ verticalAlign: 'top' }}>
+                      {stage.isRegistered && stage.clear_need_nfc_count
+                        ? `${stage.clear_need_nfc_count}개 필요`
+                        : (stage.uses_nfc ? '사용' : '-')}
+                    </TableCell>
+                    
+                    {/* [수정] 상태: verticalAlign 추가 */}
+                    <TableCell sx={{ verticalAlign: 'top' }}>
                       {stage.isRegistered ? (
                         <Chip
                           label={stage.is_hidden ? '히든' : '일반'}
@@ -128,7 +156,9 @@ export default function StageManageList({ contentId }: StageManageListProps) {
                         <Chip label="미등록" size="small" />
                       )}
                     </TableCell>
-                    <TableCell>
+                    
+                    {/* [수정] 서비스 상태: verticalAlign 추가 */}
+                    <TableCell sx={{ verticalAlign: 'top' }}>
                       {stage.isRegistered ? (
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <Typography variant="body2" color={stage.is_open ? 'green' : 'text.secondary'}>
@@ -137,7 +167,9 @@ export default function StageManageList({ contentId }: StageManageListProps) {
                         </Box>
                       ) : null}
                     </TableCell>
-                    <TableCell>
+                    
+                    {/* [수정] 관리: verticalAlign 추가 */}
+                    <TableCell sx={{ verticalAlign: 'top' }}>
                       {stage.isRegistered ? (
                         <Button
                           variant="outlined"
