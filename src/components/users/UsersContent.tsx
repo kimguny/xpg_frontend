@@ -25,8 +25,15 @@ import ConfirmDialog from '@/components/common/ConfirmDialog';
 import { User } from '@/lib/api/admin';
 import { useGetUsers } from '@/hooks/query/useGetUsers';
 import { useDeleteUser } from '@/hooks/mutation/useDeleteUser';
+import PointAdjustModal from './PointAdjustModal';
 
-function Row({ user, onDeleteClick }: { user: User, onDeleteClick: (id: string) => void }) {
+interface RowProps {
+  user: User;
+  onDeleteClick: (id: string) => void;
+  onPointModifyClick: (user: User) => void;
+}
+
+function Row({ user, onDeleteClick, onPointModifyClick }: RowProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -38,7 +45,21 @@ function Row({ user, onDeleteClick }: { user: User, onDeleteClick: (id: string) 
         <TableCell>{user.profile?.name || '-'}</TableCell>
         <TableCell>{user.profile?.phone || '-'}</TableCell>
         <TableCell>{user.nickname}</TableCell>
-        <TableCell>{user.profile?.points || 0}</TableCell>
+        
+        <TableCell>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            {user.profile?.points || 0}
+            <Button 
+              variant="outlined" 
+              size="small" 
+              sx={{ ml: 1 }}
+              onClick={() => onPointModifyClick(user)}
+            >
+              수정
+            </Button>
+          </Box>
+        </TableCell>
+        
         <TableCell>
           <Button variant="outlined" size="small" sx={{ mr: 1 }} onClick={() => setOpen(!open)}>
             자세히
@@ -64,7 +85,6 @@ function Row({ user, onDeleteClick }: { user: User, onDeleteClick: (id: string) 
   );
 }
 
-// ✨ 1. 정렬 옵션에 '날짜순'을 추가합니다.
 const sortOptions = {
   'created_at,DESC': '최신순',
   'last_active_at,DESC': '날짜순',
@@ -74,6 +94,9 @@ const sortOptions = {
 export default function UsersContent() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+
+  const [pointModalOpen, setPointModalOpen] = useState(false);
+  const [selectedUserForPoints, setSelectedUserForPoints] = useState<User | null>(null);
   
   const [searchQuery, setSearchQuery] = useState('');
   const [sort, setSort] = useState('created_at,DESC');
@@ -104,6 +127,15 @@ export default function UsersContent() {
     handleDialogClose();
   };
   
+  const handleOpenPointModal = (user: User) => {
+    setSelectedUserForPoints(user);
+    setPointModalOpen(true);
+  };
+  const handleClosePointModal = () => {
+    setPointModalOpen(false);
+    setSelectedUserForPoints(null);
+  };
+
   const handleSearch = () => {
     setSearchQuery(searchInput);
   };
@@ -148,8 +180,14 @@ export default function UsersContent() {
           <TextField 
             variant="outlined" 
             size="small" 
-            placeholder="아이디, 이메일, 닉네임 검색" 
-            onKeyDown={handleSearch}
+            placeholder="아이디 검색" 
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                handleSearch();
+              }
+            }}
             InputProps={{ startAdornment: ( <InputAdornment position="start"><Search /></InputAdornment>)}} 
             sx={{ bgcolor: 'white' }}
           />
@@ -177,7 +215,12 @@ export default function UsersContent() {
                 <TableRow><TableCell colSpan={8} align="center">사용자가 없습니다.</TableCell></TableRow>
               ) : (
                 users.map((user) => (
-                  <Row key={user.id} user={user} onDeleteClick={handleDeleteClick} />
+                  <Row 
+                    key={user.id} 
+                    user={user} 
+                    onDeleteClick={handleDeleteClick} 
+                    onPointModifyClick={handleOpenPointModal}
+                  />
                 ))
               )}
             </TableBody>
@@ -191,6 +234,12 @@ export default function UsersContent() {
         title="회원 삭제"
         message={`정말로 ID ${selectedUserId} 회원을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`}
         isPending={deleteUserMutation.isPending}
+      />
+      
+      <PointAdjustModal
+        open={pointModalOpen}
+        onClose={handleClosePointModal}
+        user={selectedUserForPoints}
       />
     </Box>
   );
