@@ -121,7 +121,7 @@ export default function StageManageList({ contentId }: StageManageListProps) {
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                           {stage.hints.map((hint) => (
                             <Typography key={hint.id} variant="body2" sx={{ whiteSpace: 'nowrap' }}>
-                              #{hint.order_no}: {hint.preset}
+                              {hint.preset}: {hint.text_block_1}
                             </Typography>
                           ))}
                         </Box>
@@ -131,10 +131,19 @@ export default function StageManageList({ contentId }: StageManageListProps) {
                     </TableCell>
                     
                     {/* [수정] 퍼즐: 퍼즐 개수 표시 */}
-                    <TableCell sx={{ verticalAlign: 'top' }}>
-                      {stage.isRegistered && stage.puzzles && stage.puzzles.length > 0
-                        ? `${stage.puzzles.length}개`
-                        : '-'}
+                    <TableCell sx={{ paddingY: 1, verticalAlign: 'top' }}>
+                      {stage.isRegistered && stage.puzzles && stage.puzzles.length > 0 ? (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          {stage.puzzles.map((puzzle, index) => (
+                            // key를 puzzle.id 대신 index로 수정
+                            <Typography key={index} variant="body2" sx={{ whiteSpace: 'nowrap' }}>
+                              {puzzle.style || '(알 수 없음)'}
+                            </Typography>
+                          ))}
+                        </Box>
+                      ) : (
+                        '-'
+                      )}
                     </TableCell>
                     
                     {/* [수정] NFC: 필요 개수 표시 */}

@@ -142,7 +142,7 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
               // onClick={() => handleHintSelect(hint)} 
             >
               <ListItemText 
-                primary={`#${hint.order_no}: ${hint.text_block_1 || '(내용 없음)'}`} 
+                primary={`${hint.order_no}: ${hint.text_block_1 || '(내용 없음)'}`} 
                 secondary={`프리셋: ${hint.preset} / NFC: ${hint.nfc ? hint.nfc.tag_name : '없음'}`} 
               />
             </ListItem>

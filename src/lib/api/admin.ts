@@ -420,3 +420,35 @@ export const updateUnlockConfig = async ({
 }): Promise<void> => { // 이 API는 별도의 응답 본문이 없을 수 있습니다.
   await apiClient.put(`/admin/stages/${stageId}/unlock`, payload);
 };
+
+export interface PointAdjustPayload {
+  coin_delta: number;
+  note: string;
+}
+
+export interface RewardHistoryItem {
+  id: number;
+  user_id: string;
+  content_id: string | null;
+  stage_id: string | null;
+  coin_delta: number;
+  created_at: string;
+  note: string | null;
+}
+
+/**
+ * 관리자용: 특정 사용자의 포인트를 수동으로 조정합니다. (POST /admin/users/{userId}/adjust-points)
+ */
+export const adjustAdminUserPoints = async ({
+  userId,
+  payload,
+}: {
+  userId: string;
+  payload: PointAdjustPayload;
+}): Promise<RewardHistoryItem> => {
+  const response = await apiClient.post<RewardHistoryItem>(
+    `/admin/users/${userId}/adjust-points`,
+    payload
+  );
+  return response.data;
+};
