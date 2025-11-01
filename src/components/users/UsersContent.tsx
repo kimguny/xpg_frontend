@@ -49,19 +49,18 @@ function Row({ user, onDeleteClick, onPointModifyClick }: RowProps) {
         <TableCell>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             {user.profile?.points || 0}
-            <Button 
-              variant="outlined" 
-              size="small" 
-              sx={{ ml: 1 }}
-              onClick={() => onPointModifyClick(user)}
-            >
-              수정
-            </Button>
           </Box>
         </TableCell>
         
         <TableCell>
-          <Button variant="outlined" size="small" sx={{ mr: 1 }} onClick={() => setOpen(!open)}>
+            <Button 
+              variant="outlined" 
+              size="small" 
+              onClick={() => onPointModifyClick(user)}
+            >
+              포인트 조정
+            </Button>
+          <Button variant="outlined" size="small" sx={{ mr: 1, ml: 1 }} onClick={() => setOpen(!open)}>
             자세히
           </Button>
           <Button variant="outlined" size="small" color="error" onClick={() => onDeleteClick(user.id)}>
