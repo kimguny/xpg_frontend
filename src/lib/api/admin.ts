@@ -732,3 +732,20 @@ export const updateAdminStoreReward = async ({
 export const deleteAdminStoreReward = async (rewardId: string): Promise<void> => {
   await apiClient.delete(`/admin/rewards/${rewardId}`);
 };
+
+// QR 코드 생성 응답 타입
+export interface GenerateQrResponse {
+  qr_image_url: string;
+  note: string;
+}
+
+/**
+ * (관리자) 리워드 상품 교환용 QR 코드를 생성합니다.
+ * (POST /admin/rewards/{rewardId}/generate-qr)
+ */
+export const generateAdminRewardQrCode = async (rewardId: string): Promise<GenerateQrResponse> => {
+  const response = await apiClient.post<GenerateQrResponse>(
+    `/admin/rewards/${rewardId}/generate-qr`
+  );
+  return response.data;
+};
