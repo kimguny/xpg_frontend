@@ -53,6 +53,7 @@ export interface NfcTag {
   id: string;
   udid: string;
   tag_name: string;
+  description: string | null;
   address: string | null;
   floor_location: string | null;
   media_url: string | null;
@@ -99,14 +100,6 @@ export const getAdminContents = async (): Promise<PaginatedResponse<Content>> =>
   const response = await apiClient.get<PaginatedResponse<Content>>('/admin/contents', {
     params: { page: 1, size: 100 }, // 페이지네이션 기능 추가 전까지 100개 조회
   });
-  return response.data;
-};
-
-/**
- * 관리자용: 전체 NFC 태그 목록을 가져옵니다. (GET /admin/nfc-tags)
- */
-export const getAdminNfcTags = async (): Promise<PaginatedResponse<NfcTag>> => {
-  const response = await apiClient.get<PaginatedResponse<NfcTag>>('/admin/nfc-tags');
   return response.data;
 };
 
@@ -462,6 +455,7 @@ export const adjustAdminUserPoints = async ({
 export interface NFCTagCreatePayload {
   udid: string;
   tag_name: string;
+  description: string | null;
   address?: string | null;
   floor_location?: string | null;
   media_url?: string | null;
@@ -514,4 +508,26 @@ export const updateAdminNfcTag = async ({
  */
 export const deleteAdminNfcTag = async (nfcId: string): Promise<void> => {
   await apiClient.delete(`/admin/nfc-tags/${nfcId}`);
+};
+
+// NFC 태그 목록 조회를 위한 파라미터 타입
+export interface GetNfcTagsParams {
+  page?: number;
+  size?: number;
+  category?: string;
+  active?: boolean;
+  search?: string;
+  // (참고: 백엔드 API에 정렬(sort) 기능은 아직 없습니다.)
+}
+
+/**
+ * 관리자용: 전체 NFC 태그 목록을 가져옵니다. (GET /admin/nfc-tags)
+ */
+export const getAdminNfcTags = async (
+  params: GetNfcTagsParams = {}
+): Promise<PaginatedResponse<NfcTag>> => {
+  const response = await apiClient.get<PaginatedResponse<NfcTag>>('/admin/nfc-tags', {
+    params, // 파라미터를 API 요청에 전달
+  });
+  return response.data;
 };
