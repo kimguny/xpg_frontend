@@ -78,9 +78,13 @@ export default function Sidebar() {
       icon: <People />
     },
     {
-      name: '리워드관리',
+      name: '리워드',
       path: '/save/rewards',
-      icon: <CardGiftcard />
+      icon: <CardGiftcard />,
+      subItems: [
+        { name: '리워드 관리', path: '/save/rewards' },
+        { name: '결제 내역', path: '/save/payments' },
+      ]
     },
     {
       name: '매장관리',

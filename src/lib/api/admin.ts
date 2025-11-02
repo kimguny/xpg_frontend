@@ -765,3 +765,59 @@ export const getAdminDashboardStats = async (): Promise<AdminStatsResponse> => {
   const response = await apiClient.get<AdminStatsResponse>('/admin/stats');
   return response.data;
 };
+
+// ==========================================================
+// 결제 내역 (Reward Ledger) API
+// ==========================================================
+
+// 1. 결제 내역 응답 타입 (RewardLedgerItem)
+export interface RewardLedgerItem {
+  id: number;
+  created_at: string;
+  coin_delta: number;
+  note: string | null;
+  // User 정보 (JOIN)
+  user: {
+    id: string;
+    login_id: string;
+    nickname: string | null;
+  } | null;
+  // 상품 정보 (JOIN)
+  reward: {
+    id: string;
+    product_name: string;
+  } | null;
+  // 콘텐츠 정보 (JOIN)
+  content: {
+    id: string;
+    title: string;
+  } | null;
+  // 스테이지 정보 (JOIN)
+  stage: {
+    id: string;
+    title: string;
+  } | null;
+}
+
+// 2. 결제 내역 조회 파라미터
+export interface GetRewardLedgerParams {
+  page?: number;
+  size?: number;
+  sort?: string; // 예: "created_at,DESC"
+  user_id?: string; // 특정 유저 필터 (옵션)
+  q?: string; // 검색 (옵션)
+}
+
+/**
+ * 관리자용: 전체 결제 내역(RewardLedger) 목록을 조회합니다.
+ * (GET /api/v1/admin/reward-ledger)
+ */
+export const getAdminRewardLedger = async (
+  params: GetRewardLedgerParams = {}
+): Promise<PaginatedResponse<RewardLedgerItem>> => {
+  const response = await apiClient.get<PaginatedResponse<RewardLedgerItem>>(
+    '/admin/reward-ledger', // 백엔드 API 엔드포인트
+    { params }
+  );
+  return response.data;
+};
