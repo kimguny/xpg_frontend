@@ -916,3 +916,31 @@ export const getAdminHomeDashboard = async (): Promise<HomeDashboardResponse> =>
   // API(snake_case) -> 컴포넌트(camelCase) 변환 후 반환
   return transformDashboardData(response.data);
 };
+
+// ==========================================================
+// [신규] 관리자용 범용 이미지 업로드 API
+// ==========================================================
+
+// 1. 업로드 응답 타입
+export interface ImageUploadResponse {
+  file_path: string; // 예: /media/images/uuid.png
+  file_name: string;
+  content_type: string;
+  size: number;
+}
+
+/**
+ * 관리자용: 이미지를 서버에 업로드합니다.
+ */
+export const uploadAdminImage = async (formData: FormData): Promise<ImageUploadResponse> => {
+  const response = await apiClient.post<ImageUploadResponse>(
+    '/admin/uploads/image',
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }
+  );
+  return response.data;
+};

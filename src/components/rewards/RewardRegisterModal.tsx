@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, ChangeEvent } from 'react'; // [1. useRef, ChangeEvent 추가]
 import { useForm, Controller, SubmitHandler } from 'react-hook-form';
 import {
   Box,
@@ -22,8 +22,8 @@ import { useCreateStoreReward } from '@/hooks/mutation/useCreateStoreReward';
 import { useUpdateStoreReward } from '@/hooks/mutation/useUpdateStoreReward';
 import { useGetStoreRewardById } from '@/hooks/query/useGetStoreRewardById';
 import { StoreRewardCreatePayload, StoreRewardUpdatePayload } from '@/lib/api/admin';
-// [수정] QR 코드 생성 훅 임포트
 import { useGenerateRewardQr } from '@/hooks/mutation/useGenerateRewardQr'; 
+import { useUploadImage } from '@/hooks/mutation/useUploadImage';
 
 // 1. Props 인터페이스
 interface RewardRegisterModalProps {
@@ -58,25 +58,30 @@ const DEFAULT_FORM_VALUES: RewardFormData = {
 
 // 카테고리 옵션
 const CATEGORY_OPTIONS = ['식품', '굿즈', '상품권', '쿠폰', '기타'];
-
+// [3. 추가] 백엔드 API 주소 (환경변수에서 가져오는 것이 가장 좋음)
+const API_BASE_URL = 'http://121.126.223.205:8000'; 
 
 export default function RewardRegisterModal({ open, onClose, mode, storeId, rewardId }: RewardRegisterModalProps) {
   
   const isEditMode = mode === 'edit' && !!rewardId;
 
+  // [4. 추가] 파일 입력을 위한 ref
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const validStoreId = storeId || ''; 
   const createRewardMutation = useCreateStoreReward(validStoreId);
   const updateRewardMutation = useUpdateStoreReward(); 
-  // [수정] QR 코드 생성 훅 초기화
   const generateQrMutation = useGenerateRewardQr(); 
+  const uploadImageMutation = useUploadImage();
 
   const { data: initialData, isLoading: isDataLoading } = useGetStoreRewardById(
     isEditMode ? rewardId : null
   );
   
   const [isQrGenerated, setIsQrGenerated] = useState(false); 
-  // [수정] QR 코드 다운로드 URL 상태 추가
   const [qrDownloadUrl, setQrDownloadUrl] = useState<string | null>(null);
+  // [6. 추가] 업로드할 파일명 상태
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   
   const { control, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<RewardFormData>({
     defaultValues: DEFAULT_FORM_VALUES,
@@ -100,6 +105,7 @@ export default function RewardRegisterModal({ open, onClose, mode, storeId, rewa
       reset(DEFAULT_FORM_VALUES);
       setIsQrGenerated(false); 
       setQrDownloadUrl(null); // URL 초기화
+      setSelectedFileName(null); // 파일명 초기화
     } else if (open && isEditMode && initialData) {
         reset({
             product_name: initialData.product_name,
@@ -110,11 +116,16 @@ export default function RewardRegisterModal({ open, onClose, mode, storeId, rewa
             is_unlimited: initialData.stock_qty === null,
             is_active: initialData.is_active,
             exposure_order: String(initialData.exposure_order || 0), 
-            category: '기타', // DB에 카테고리 필드가 없어 임시 처리
+            category: '기타', // TODO: API에 카테고리 필드 추가 필요
         });
-        // [수정] QR 코드 URL이 DB에 저장되어 있다면, 그 유무로 isQrGenerated를 세팅
-        // (현재 StoreReward 모델에 qr_image_url이 없으므로 임시로 true 처리)
-        // TODO: initialData.qr_image_url이 존재하면 setIsQrGenerated(true) 및 setQrDownloadUrl(initialData.qr_image_url) 호출
+        
+        // TODO: initialData에 qr_image_url이 포함되어 오면, 해당 URL로 상태 설정 필요
+        // 예: if (initialData.qr_image_url) {
+        //      setQrDownloadUrl(initialData.qr_image_url);
+        //      setIsQrGenerated(true);
+        // }
+        
+        // 임시로 수정 모드일 때 QR이 생성된 것으로 간주 (DB 연동 후 위 TODO로 대체)
         setIsQrGenerated(true); 
     }
   }, [open, isEditMode, initialData, reset]);
@@ -127,11 +138,12 @@ export default function RewardRegisterModal({ open, onClose, mode, storeId, rewa
     const payload = {
       product_name: data.product_name,
       product_desc: data.product_desc || null,
-      image_url: data.image_url || null,
+      image_url: data.image_url || null, // 파일 업로드 성공 시 이 URL을 덮어써야 함
       price_coin: Number(data.price_coin) || 0,
       stock_qty: data.is_unlimited ? null : (data.stock_qty ? Number(data.stock_qty) : 0), 
       is_active: data.is_active,
       exposure_order: Number(data.exposure_order) || 0,
+      // TODO: 'category' 필드도 payload에 추가 필요
     };
     
     if (isEditMode && rewardId) {
@@ -156,18 +168,16 @@ export default function RewardRegisterModal({ open, onClose, mode, storeId, rewa
     }
   };
   
-  // [수정] QR 코드 생성 핸들러 (API 연동)
+  // QR 코드 생성 핸들러 (API 연동)
   const handleGenerateQrCode = () => {
       if (!isEditMode || !rewardId) {
           alert("상품을 먼저 등록(저장)해야 QR 코드를 생성할 수 있습니다.");
           return;
       }
 
-      // API 호출
       generateQrMutation.mutate(rewardId, {
           onSuccess: (data) => {
-              // API로부터 받은 URL을 상태에 저장
-              setQrDownloadUrl(data.qr_image_url);
+              setQrDownloadUrl(data.qr_image_url); // 예: '/media/qr/file.png'
               setIsQrGenerated(true); 
               alert('QR 코드가 성공적으로 생성되었습니다.');
           },
@@ -178,16 +188,51 @@ export default function RewardRegisterModal({ open, onClose, mode, storeId, rewa
       });
   };
 
-  // [수정] QR 코드 다운로드 핸들러
+  // [7. 수정] QR 코드 다운로드 핸들러 (404 해결)
   const handleDownloadQrCode = () => {
       if (!qrDownloadUrl) {
           alert('QR 코드가 아직 생성되지 않았거나 URL이 유효하지 않습니다.');
           return;
       }
-      // 새 창에서 이미지 URL을 열어 다운로드 유도
-      window.open(qrDownloadUrl, '_blank');
+      
+      // 상대 경로를 절대 URL로 변환
+      // qrDownloadUrl이 '/media/...'로 시작한다고 가정
+      const fullUrl = `${API_BASE_URL}${qrDownloadUrl}`;
+      window.open(fullUrl, '_blank');
   };
 
+  // [8. 추가] 파일 선택 버튼 클릭 핸들러
+  const handleSelectFileClick = () => {
+      fileInputRef.current?.click();
+  };
+
+  // [9. 추가] 파일 선택 시 핸들러
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      setSelectedFileName(file.name);
+
+      const formData = new FormData();
+      formData.append('file', file); // 백엔드 API의 파라미터 이름('file')과 일치
+
+      uploadImageMutation.mutate(formData, {
+          onSuccess: (data) => {
+              // 업로드 성공 시, 반환된 URL을 폼의 image_url 필드에 세팅
+              // data.file_path 예: /media/images/uuid.png
+              setValue('image_url', data.file_path, { shouldValidate: true }); 
+              alert('이미지가 업로드되어 URL에 반영되었습니다.');
+              setSelectedFileName(null); // 성공 후 파일명 초기화
+          },
+          onError: (err) => {
+              alert(`이미지 업로드 실패: ${err.message}`);
+              setSelectedFileName(null);
+          }
+      });
+      
+      // 파일 입력 초기화 (동일한 파일 다시 선택 가능하도록)
+      e.target.value = '';
+  };
 
   const isLoading = createRewardMutation.isPending || updateRewardMutation.isPending;
   
@@ -232,14 +277,43 @@ export default function RewardRegisterModal({ open, onClose, mode, storeId, rewa
             <Box sx={{ border: '1px solid #ccc', p: 2, borderRadius: 1 }}>
                 <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>제품 이미지 등록</Typography>
                 <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                     <Button variant="contained" disableElevation size="small">파일 선택</Button>
-                     <Typography variant="caption" color="text.secondary">* 이미지 사이즈는 800x800 이하 권장.</Typography>
+                     {/* [10. 수정] 파일 선택 버튼에 핸들러 연결 */}
+                     <Button 
+                        variant="contained" 
+                        disableElevation 
+                        size="small"
+                        onClick={handleSelectFileClick}
+                        // disabled={uploadImageMutation.isPending} // API 연동 시
+                     >
+                        파일 선택
+                     </Button>
+                     <Typography variant="caption" color="text.secondary">
+                        {/* [11. 추가] 선택된 파일명 표시 */}
+                        {selectedFileName ? selectedFileName : "* 이미지 사이즈는 800x800 이하 권장."}
+                     </Typography>
                 </Box>
+                {/* [12. 추가] 숨겨진 파일 input */}
+                <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    onChange={handleFileChange}
+                    accept="image/*"
+                    style={{ display: 'none' }} 
+                />
+                
                 <Controller
                     name="image_url"
                     control={control}
                     render={({ field }) => (
-                      <TextField {...field} label="이미지 URL 직접 입력" fullWidth size="small" sx={{ mt: 1 }} />
+                      <TextField 
+                        {...field} 
+                        label="이미지 URL (파일 업로드 시 자동 완성)" 
+                        fullWidth 
+                        size="small" 
+                        sx={{ mt: 1 }} 
+                        // [13. 추가] 파일 업로드 중에는 수동 입력 방지
+                        // disabled={uploadImageMutation.isPending} 
+                      />
                     )}
                   />
             </Box>
@@ -336,7 +410,6 @@ export default function RewardRegisterModal({ open, onClose, mode, storeId, rewa
                     <Button 
                         variant="outlined" 
                         onClick={handleGenerateQrCode} 
-                        // [수정] 수정 모드에서만 활성화, QR 생성 중 비활성화
                         disabled={!isEditMode || generateQrMutation.isPending} 
                         sx={{ flex: 1 }}
                     >
@@ -345,10 +418,9 @@ export default function RewardRegisterModal({ open, onClose, mode, storeId, rewa
                     <Button 
                         variant="contained" 
                         color="success" 
-                        // [수정] QR이 생성(URL 확보)되었을 때만 활성화
                         disabled={!isQrGenerated || !qrDownloadUrl} 
                         sx={{ flex: 1 }}
-                        onClick={handleDownloadQrCode} // [수정] 다운로드 핸들러 연결
+                        onClick={handleDownloadQrCode} 
                     >
                         QR 코드 다운로드
                     </Button>
@@ -373,3 +445,4 @@ export default function RewardRegisterModal({ open, onClose, mode, storeId, rewa
     </Dialog>
   );
 }
+
