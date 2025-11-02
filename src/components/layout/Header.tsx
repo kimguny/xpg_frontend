@@ -15,7 +15,7 @@ export default function Header() {
   return (
     <Box 
       className="bg-white border-b border-gray-200 px-6 py-3 flex justify-end items-center"
-      sx={{ zIndex: 1200, position: 'sticky' , top: 0, bgcolor: '#d6e0eeff'}}
+      sx={{ zIndex: 1200, position: 'sticky' , top: 0, bgcolor: '#ffffffff'}}
     >
       <Box className="flex items-center space-x-4">
         <Typography variant="body2" className="text-gray-600">
