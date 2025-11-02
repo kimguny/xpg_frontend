@@ -3,5 +3,5 @@ import StoreRegisterForm from '@/components/stores/StoreRegisterForm';
 import React from 'react';
 
 export default function StoreRegisterPage() {
-  return <StoreRegisterForm />;
+  return <StoreRegisterForm mode="register" />;
 }
