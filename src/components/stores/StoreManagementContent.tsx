@@ -15,12 +15,13 @@ import {
   TableRow,
   Paper,
   CardContent,
-  CircularProgress, // [1. 추가] 로딩 스피너
+  CircularProgress,
 } from '@mui/material';
 import { Add } from '@mui/icons-material';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
-import { useGetStores } from '@/hooks/query/useGetStores'; // [2. 추가] 훅 import
-import { useDeleteStore } from '@/hooks/mutation/useDeleteStore'; // [3. 추가] 훅 import
+import { useGetStores } from '@/hooks/query/useGetStores';
+import { useDeleteStore } from '@/hooks/mutation/useDeleteStore';
+import { useGetAdminStats } from '@/hooks/query/useGetAdminStats';
 
 // 통계 카드용 컴포넌트
 interface StatCardProps {
@@ -45,6 +46,8 @@ export default function StoreManagementContent() {
   // [5. 추가] API 및 다이얼로그 상태 관리
   const { data: stores, isLoading } = useGetStores();
   const deleteStoreMutation = useDeleteStore();
+
+  const { data: statsData, isLoading: isStatsLoading } = useGetAdminStats();
   
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
@@ -65,18 +68,37 @@ export default function StoreManagementContent() {
     handleDialogClose();
   };
 
+  const stats = {
+    today: statsData?.today_consumed_count ?? 0,
+    total: statsData?.total_consumed_count ?? 0,
+    points: statsData?.total_points_spent ?? 0,
+    lowStock: statsData?.low_stock_count ?? 0,
+  };
+
   return (
     <Box>
       <Typography variant="h5" sx={{ fontWeight: 'bold', mb: 2 }}>
         매장 관리
       </Typography>
 
-      {/* 상단 통계 카드 (API 연동 전) */}
+      {/* 상단 통계 카드 */}
       <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-        <StatCard title="오늘 교환건수" value="10건" />
-        <StatCard title="누적 교환 건수" value="1,234건" />
-        <StatCard title="총 포인트 차감" value="5,432,100P" />
-        <StatCard title="재고 임박" value="3개" />
+        <StatCard 
+          title="오늘 교환건수" 
+          value={isStatsLoading ? '...' : `${stats.today.toLocaleString()}건`} 
+        />
+        <StatCard 
+          title="누적 교환 건수" 
+          value={isStatsLoading ? '...' : `${stats.total.toLocaleString()}건`} 
+        />
+        <StatCard 
+          title="총 포인트 차감" 
+          value={isStatsLoading ? '...' : `${stats.points.toLocaleString()}P`} 
+        />
+        <StatCard 
+          title="재고 임박" 
+          value={isStatsLoading ? '...' : `${stats.lowStock.toLocaleString()}개`} 
+        />
       </Box>
       
       {/* 등록 버튼 */}

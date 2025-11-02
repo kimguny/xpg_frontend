@@ -749,3 +749,19 @@ export const generateAdminRewardQrCode = async (rewardId: string): Promise<Gener
   );
   return response.data;
 };
+
+// 1. 통계 응답 타입 정의
+export interface AdminStatsResponse {
+  today_consumed_count: number;
+  total_consumed_count: number;
+  total_points_spent: number;
+  low_stock_count: number;
+}
+
+/**
+ * 관리자 대시보드 4개 카드 통계 조회 (GET /api/v1/admin/stats)
+ */
+export const getAdminDashboardStats = async (): Promise<AdminStatsResponse> => {
+  const response = await apiClient.get<AdminStatsResponse>('/admin/stats');
+  return response.data;
+};

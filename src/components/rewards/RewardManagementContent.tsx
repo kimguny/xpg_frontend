@@ -35,6 +35,7 @@ import RewardRegisterModal from './RewardRegisterModal';
 import { useGetStoreRewards } from '@/hooks/query/useGetStoreRewards';
 import { useDeleteStoreReward } from '@/hooks/mutation/useDeleteStoreReward';
 import { GetStoreRewardsParams, StoreReward } from '@/lib/api/admin';
+import { useGetAdminStats } from '@/hooks/query/useGetAdminStats';
 
 // ----------------------------------------------------------------------
 //  기존 타입 및 상수 재정의 (API 연동에 맞게)
@@ -52,14 +53,6 @@ interface StatCardProps {
   //  API 연동을 위해 value 타입을 string | number로 확장
   value: string | number;
 }
-
-//  실제 사용하지 않고 초기값 유지용으로만 둡니다.
-const initialRewards: APIBasedRewardItem[] = [
-  // id를 string(UUID)으로 가정하여 타입 수정
-  { id: '1', product_name: '목포의 눈물빵', image_url: 'https://via.placeholder.com/40', price_coin: 3000, stock_qty: 100, is_active: true, exposure_order: 1, store_id: 'dummy', product_desc: '', remainingQty: 30, },
-  { id: '2', product_name: '새우바게트', image_url: 'https://via.placeholder.com/40', price_coin: 5000, stock_qty: 50, is_active: true, exposure_order: 2, store_id: 'dummy', product_desc: '', remainingQty: 5, },
-  { id: '3', product_name: '크림치즈 바게트', image_url: 'https://via.placeholder.com/40', price_coin: 4500, stock_qty: 0, is_active: true, exposure_order: 3, store_id: 'dummy', product_desc: '', remainingQty: 0, },
-];
 
 const StatCard = ({ title, value }: StatCardProps) => (
   <Card sx={{ flex: 1, textAlign: 'center' }}>
@@ -103,6 +96,9 @@ export default function RewardManagementContent() {
   //  API 데이터 사용
   const apiRewards = (data?.items || []) as StoreReward[]; 
   const totalItems = data?.total || 0;
+
+  // admin-stats 훅 호출
+  const { data: statsData, isLoading: isStatsLoading } = useGetAdminStats();
   
   //  훅: 상품 삭제
   const deleteMutation = useDeleteStoreReward();
@@ -161,19 +157,13 @@ export default function RewardManagementContent() {
   const handleSearch = () => {
       setQueryParams(prev => ({ ...prev, q: searchTerm, page: 1 }));
   };
-  
-  //  임시 통계 계산 (목록 데이터 기반)
-  const tempStats = useMemo(() => {
-    const lowStockCount = rewards.filter(r => r.remainingQty <= 10 && r.remainingQty > 0).length;
-    return {
-      totalPoints: rewards.reduce((sum, r) => sum + r.points, 0).toLocaleString() + ' P',
-      lowStockCount: lowStockCount + '개',
-    };
-  }, [rewards]);
-  
-  // ----------------------------------------------------------------------
-  //  렌더링
-  // ----------------------------------------------------------------------
+
+  const stats = {
+    today: statsData?.today_consumed_count ?? 0,
+    total: statsData?.total_consumed_count ?? 0,
+    points: statsData?.total_points_spent ?? 0,
+    lowStock: statsData?.low_stock_count ?? 0,
+  };
 
   return (
     <Box>
@@ -181,10 +171,22 @@ export default function RewardManagementContent() {
 
       {/* 상단 통계 카드 */}
       <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-        <StatCard title="오늘 교환건수" value="N/A" />
-        <StatCard title="누적 교환 건수" value="N/A" />
-        <StatCard title="총 포인트 차감" value={tempStats.totalPoints} />
-        <StatCard title="재고 임박" value={tempStats.lowStockCount} />
+        <StatCard 
+          title="오늘 교환건수" 
+          value={isStatsLoading ? '...' : `${stats.today.toLocaleString()}건`} 
+        />
+        <StatCard 
+          title="누적 교환 건수" 
+          value={isStatsLoading ? '...' : `${stats.total.toLocaleString()}건`} 
+        />
+        <StatCard 
+          title="총 포인트 차감" 
+          value={isStatsLoading ? '...' : `${stats.points.toLocaleString()}P`} 
+        />
+        <StatCard 
+          title="재고 임박" 
+          value={isStatsLoading ? '...' : `${stats.lowStock.toLocaleString()}개`} 
+        />
       </Box>
 
       {/* 필터 및 등록 버튼 */}
