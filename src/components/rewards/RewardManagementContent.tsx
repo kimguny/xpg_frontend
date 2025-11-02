@@ -176,6 +176,7 @@ export default function RewardManagementContent() {
         open={editModalOpen}
         onClose={() => setEditModalOpen(false)}
         mode={selectedRewardId ? 'edit' : 'register'}
+        storeId={""}
       />
     </Box>
   );
