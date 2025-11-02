@@ -531,3 +531,141 @@ export const getAdminNfcTags = async (
   });
   return response.data;
 };
+
+// (1) 매장 상품(리워드) 응답 타입
+export interface StoreReward {
+  id: string;
+  store_id: string;
+  product_name: string;
+  product_desc: string | null;
+  image_url: string | null;
+  price_coin: number;
+  stock_qty: number | null;
+  is_active: boolean;
+  exposure_order: number | null;
+}
+
+// (2) 매장 상품(리워드) 생성 요청 타입
+export interface StoreRewardCreatePayload {
+  product_name: string;
+  product_desc?: string | null;
+  image_url?: string | null;
+  price_coin?: number;
+  stock_qty?: number | null;
+  is_active?: boolean;
+  exposure_order?: number | null;
+}
+
+// (3) 매장 응답 타입 (상품 목록 포함)
+export interface Store {
+  id: string;
+  store_name: string;
+  description: string | null;
+  address: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  display_start_at: string | null;
+  display_end_at: string | null;
+  is_always_on: boolean;
+  map_image_url: string | null;
+  show_products: boolean;
+  rewards: StoreReward[];
+}
+
+// (4) 매장 생성 요청 타입
+export interface StoreCreatePayload {
+  store_name: string;
+  description?: string | null;
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  display_start_at?: string | null;
+  display_end_at?: string | null;
+  is_always_on?: boolean;
+  map_image_url?: string | null;
+  show_products?: boolean;
+}
+
+// (5) 매장 수정 요청 타입
+export interface StoreUpdatePayload {
+  store_name?: string;
+  description?: string | null;
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  display_start_at?: string | null;
+  display_end_at?: string | null;
+  is_always_on?: boolean;
+  map_image_url?: string | null;
+  show_products?: boolean;
+}
+
+// (6) 매장 목록 조회 파라미터 타입
+export interface GetStoresParams {
+  skip?: number;
+  limit?: number;
+}
+
+/**
+ * 관리자용: 매장 목록 조회 (GET /admin/stores)
+ */
+export const getAdminStores = async (
+  params: GetStoresParams = {}
+): Promise<Store[]> => {
+  const response = await apiClient.get<Store[]>('/admin/stores', { params });
+  return response.data;
+};
+
+/**
+ * 관리자용: 특정 매장 상세 조회 (GET /admin/stores/{storeId})
+ */
+export const getAdminStoreById = async (storeId: string): Promise<Store> => {
+  const response = await apiClient.get<Store>(`/admin/stores/${storeId}`);
+  return response.data;
+};
+
+/**
+ * 관리자용: 새 매장 생성 (POST /admin/stores)
+ */
+export const createAdminStore = async (payload: StoreCreatePayload): Promise<Store> => {
+  const response = await apiClient.post<Store>('/admin/stores', payload);
+  return response.data;
+};
+
+/**
+ * 관리자용: 매장 정보 수정 (PATCH /admin/stores/{storeId})
+ */
+export const updateAdminStore = async ({
+  storeId,
+  payload,
+}: {
+  storeId: string;
+  payload: StoreUpdatePayload;
+}): Promise<Store> => {
+  const response = await apiClient.patch<Store>(`/admin/stores/${storeId}`, payload);
+  return response.data;
+};
+
+/**
+ * 관리자용: 매장 삭제 (DELETE /admin/stores/{storeId})
+ */
+export const deleteAdminStore = async (storeId: string): Promise<void> => {
+  await apiClient.delete(`/admin/stores/${storeId}`);
+};
+
+/**
+ * 관리자용: 매장 리워드(상품) 생성 (POST /admin/stores/{storeId}/rewards)
+ */
+export const createAdminStoreReward = async ({
+  storeId,
+  payload,
+}: {
+  storeId: string;
+  payload: StoreRewardCreatePayload;
+}): Promise<StoreReward> => {
+  const response = await apiClient.post<StoreReward>(
+    `/admin/stores/${storeId}/rewards`,
+    payload
+  );
+  return response.data;
+};

@@ -1,4 +1,3 @@
-// src/components/stores/StoreManagementContent.tsx
 'use client';
 
 import { useState } from 'react';
@@ -16,9 +15,12 @@ import {
   TableRow,
   Paper,
   CardContent,
+  CircularProgress, // [1. 추가] 로딩 스피너
 } from '@mui/material';
 import { Add } from '@mui/icons-material';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
+import { useGetStores } from '@/hooks/query/useGetStores'; // [2. 추가] 훅 import
+import { useDeleteStore } from '@/hooks/mutation/useDeleteStore'; // [3. 추가] 훅 import
 
 // 통계 카드용 컴포넌트
 interface StatCardProps {
@@ -35,23 +37,33 @@ const StatCard = ({ title, value }: StatCardProps) => (
   </Card>
 );
 
-// 임시 매장 데이터 타입
-interface StoreItem {
-  id: number;
-  storeName: string;
-  address: string;
-  productCount: number;
-}
-
-// 임시 데이터
-const initialStores: StoreItem[] = [
-  { id: 1, storeName: '코롬방제과', address: '전라남도 목포시 노적봉길 9', productCount: 2 },
-  { id: 2, storeName: '씨엘비베이커리', address: '전라남도 목포시 영산로75번길 14', productCount: 3 },
-];
+// [4. 삭제] 임시 데이터 타입 및 데이터 삭제
 
 export default function StoreManagementContent() {
   const router = useRouter();
-  const [stores, setStores] = useState(initialStores);
+
+  // [5. 추가] API 및 다이얼로그 상태 관리
+  const { data: stores, isLoading } = useGetStores();
+  const deleteStoreMutation = useDeleteStore();
+  
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
+
+  // [6. 추가] 삭제 버튼 핸들러
+  const handleDeleteClick = (storeId: string) => {
+    setSelectedStoreId(storeId);
+    setDialogOpen(true);
+  };
+  const handleDialogClose = () => {
+    setDialogOpen(false);
+    setSelectedStoreId(null);
+  };
+  const handleConfirmDelete = () => {
+    if (selectedStoreId) {
+      deleteStoreMutation.mutate(selectedStoreId);
+    }
+    handleDialogClose();
+  };
 
   return (
     <Box>
@@ -59,7 +71,7 @@ export default function StoreManagementContent() {
         매장 관리
       </Typography>
 
-      {/* 상단 통계 카드 (리워드와 동일) */}
+      {/* 상단 통계 카드 (API 연동 전) */}
       <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
         <StatCard title="오늘 교환건수" value="10건" />
         <StatCard title="누적 교환 건수" value="1,234건" />
@@ -91,26 +103,58 @@ export default function StoreManagementContent() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {stores.map((store) => (
-                <TableRow key={store.id} sx={{ '&:hover': { bgcolor: 'grey.50' } }}>
-                  <TableCell>{store.storeName}</TableCell>
-                  <TableCell>{store.address}</TableCell>
-                  <TableCell>{store.productCount}</TableCell>
-                  <TableCell sx={{ textAlign: 'center' }}>
-                    <Button 
-                      variant="outlined" 
-                      size="small" 
-                      onClick={() => router.push(`/save/stores/${store.id}/edit`)} // 수정 페이지로 이동
-                    >
-                      수정
-                    </Button>
-                  </TableCell>
+              {/* [7. 수정] isLoading 및 stores 데이터 연동 */}
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={4} align="center"><CircularProgress /></TableCell>
                 </TableRow>
-              ))}
+              ) : !stores || stores.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} align="center">등록된 매장이 없습니다.</TableCell>
+                </TableRow>
+              ) : (
+                stores.map((store) => (
+                  <TableRow key={store.id} sx={{ '&:hover': { bgcolor: 'grey.50' } }}>
+                    {/* [8. 수정] 실제 API 데이터 필드명 사용 */}
+                    <TableCell>{store.store_name}</TableCell>
+                    <TableCell>{store.address || '-'}</TableCell>
+                    <TableCell>{store.rewards.length}개</TableCell>
+                    <TableCell sx={{ textAlign: 'center' }}>
+                      <Button 
+                        variant="outlined" 
+                        size="small" 
+                        sx={{ mr: 1 }}
+                        onClick={() => router.push(`/save/stores/manage/${store.id}/edit`)}
+                      >
+                        수정
+                      </Button>
+                      {/* [9. 추가] 삭제 버튼 */}
+                      <Button 
+                        variant="outlined" 
+                        size="small" 
+                        color="error"
+                        onClick={() => handleDeleteClick(store.id)}
+                      >
+                        삭제
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </TableContainer>
       </Card>
+
+      {/* [10. 추가] 삭제 확인 다이얼로그 연동 */}
+      <ConfirmDialog
+        open={dialogOpen}
+        onClose={handleDialogClose}
+        onConfirm={handleConfirmDelete}
+        title="매장 삭제"
+        message={`정말로 이 매장을 삭제하시겠습니까? 매장에 속한 모든 상품도 함께 삭제됩니다.`}
+        isPending={deleteStoreMutation.isPending}
+      />
     </Box>
   );
 }
