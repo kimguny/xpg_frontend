@@ -821,3 +821,98 @@ export const getAdminRewardLedger = async (
   );
   return response.data;
 };
+
+// ==========================================================
+// HOME 대시보드 API (GET /api/v1/admin/home-dashboard)
+// ==========================================================
+
+// 1. API Raw 응답 타입 (백엔드가 보내는 snake_case)
+interface UserStatsRaw {
+  total: number;
+  today_signups: number;
+  today_withdrawals: number;
+}
+interface ContentStatsRaw {
+  active_count: number;
+  total: number;
+}
+interface NfcTagStatsRaw {
+  active_count: number;
+  total: number;
+}
+interface OngoingContentRaw {
+  id: string; // UUID는 string으로 받음
+  title: string;
+  start_at: string | null;
+  end_at: string | null;
+  participant_count: number;
+}
+interface HomeDashboardResponseRaw {
+  users: UserStatsRaw;
+  contents: ContentStatsRaw;
+  nfc_tags: NfcTagStatsRaw;
+  rewards: { status: string };
+  errors: { status: string };
+  promo: { status: string };
+  ongoing_contents: OngoingContentRaw[];
+}
+
+// 2. 컴포넌트가 사용할 타입 (카드는 camelCase, 테이블은 snake_case)
+export interface UserStats {
+  total: number;
+  todaySignups: number;
+  todayWithdrawals: number;
+}
+export interface ContentStats {
+  activeCount: number;
+  total: number;
+}
+export interface NfcTagStats {
+  activeCount: number;
+  total: number;
+}
+export interface HomeDashboardResponse {
+  users: UserStats;
+  contents: ContentStats;
+  nfcTags: NfcTagStats;
+  rewards: { status: string };
+  errors: { status: string };
+  promo: { status: string };
+  ongoingContents: OngoingContentRaw[]; // 테이블은 snake_case 유지
+}
+
+// 3. 데이터 변환 함수 (snake_case -> 부분적 camelCase)
+const transformDashboardData = (data: HomeDashboardResponseRaw): HomeDashboardResponse => {
+  return {
+    // 카드 통계는 camelCase로 변환
+    users: {
+      total: data.users.total,
+      todaySignups: data.users.today_signups,
+      todayWithdrawals: data.users.today_withdrawals,
+    },
+    contents: {
+      activeCount: data.contents.active_count,
+      total: data.contents.total,
+    },
+    nfcTags: {
+      activeCount: data.nfc_tags.active_count,
+      total: data.nfc_tags.total,
+    },
+    // 테이블 데이터는 snake_case 그대로 전달
+    ongoingContents: data.ongoing_contents,
+    // 나머지 필드
+    rewards: data.rewards,
+    errors: data.errors,
+    promo: data.promo,
+  };
+};
+
+// 4. API 호출 함수 (데이터 변환 기능 포함)
+/**
+ * 관리자 HOME 대시보드 전체 데이터 조회
+ */
+export const getAdminHomeDashboard = async (): Promise<HomeDashboardResponse> => {
+  const response = await apiClient.get<HomeDashboardResponseRaw>('/admin/home-dashboard');
+  // API(snake_case) -> 컴포넌트(camelCase) 변환 후 반환
+  return transformDashboardData(response.data);
+};

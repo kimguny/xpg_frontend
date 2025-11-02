@@ -14,54 +14,103 @@ import {
   TableRow,
   Chip,
   CircularProgress,
+  // Grid, // [1. 삭제] Grid 컴포넌트 삭제
 } from '@mui/material';
-import { Refresh } from '@mui/icons-material';
+import { Refresh, Construction } from '@mui/icons-material';
 import { useQueryClient } from '@tanstack/react-query';
-import { useGetDashboardData } from '@/hooks/query/useGetDashboard'; // ✨ Import the new hook
+
+// 대시보드 전용 훅 임포트
+import { useGetHomeDashboardData } from '@/hooks/query/useGetHomeDashboardData'; 
 
 interface StatCardProps {
   title: string;
   value: string | React.ReactNode;
   subtitle: string;
+  disabled?: boolean;
 }
 
+// 통계 카드 컴포넌트
+const StatCard = ({ title, value, subtitle, disabled }: StatCardProps) => (
+  <Card sx={{ 
+    flex: 1, 
+    boxShadow: 1, 
+    bgcolor: disabled ? 'grey.50' : 'background.paper',
+    color: disabled ? 'text.disabled' : 'text.primary',
+    height: '100%' // [2. 추가] flexbox 높이 동일하게
+  }}>
+    <CardContent sx={{ 
+      textAlign: 'center', 
+      py: 4, 
+      display: 'flex', 
+      flexDirection: 'column', 
+      justifyContent: 'center', 
+      height: '100%' 
+    }}>
+      <Typography variant="h6" sx={{ mb: 2, color: disabled ? 'text.disabled' : 'text.secondary' }}>{title}</Typography>
+      <Typography variant="h3" sx={{ fontWeight: 'bold', mb: 1.5, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {disabled ? <Construction sx={{ fontSize: 40 }} /> : value}
+      </Typography>
+      <Typography variant="body2" color={disabled ? 'text.disabled' : 'text.secondary'}>{subtitle}</Typography>
+    </CardContent>
+  </Card>
+);
+
+// HOME 대시보드 메인 컴포넌트
 export default function DashboardContent() {
   const queryClient = useQueryClient();
 
+  // 대시보드 전용 API 1개를 호출
   const {
-    usersData,
-    isUsersLoading,
-    contentsData,
-    isContentsLoading,
-    nfcTagsData,
-    isNfcTagsLoading,
-  } = useGetDashboardData();
+    data: dashboardData,
+    isLoading: isDashboardLoading,
+    isError,
+  } = useGetHomeDashboardData();
+
 
   const handleRefresh = () => {
-    queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
-    queryClient.invalidateQueries({ queryKey: ['adminContents'] });
-    queryClient.invalidateQueries({ queryKey: ['adminNfcTags'] });
+    // 훅 쿼리 키에 맞춰서 무효화
+    queryClient.invalidateQueries({ queryKey: ['homeDashboardData'] });
   };
 
+  // 6개 카드 데이터 정의
   const statCards: StatCardProps[] = [
     {
       title: '전체 회원 수',
-      value: isUsersLoading ? <CircularProgress size={40} /> : `${usersData?.total ?? 0}명`,
-      subtitle: '오늘 00명 / 탈퇴 00명',
+      value: isDashboardLoading ? <CircularProgress size={40} /> : `${dashboardData?.users.total ?? 0}명`,
+      subtitle: `오늘 ${dashboardData?.users.todaySignups ?? 0}명 / 탈퇴 ${dashboardData?.users.todayWithdrawals ?? 0}명`,
     },
     {
       title: '콘텐츠 등록 수',
-      value: isContentsLoading ? <CircularProgress size={40} /> : `${contentsData?.items.filter(c => c.is_open).length ?? 0} / ${contentsData?.total ?? 0}개`,
+      value: isDashboardLoading ? <CircularProgress size={40} /> : `${dashboardData?.contents.activeCount ?? 0} / ${dashboardData?.contents.total ?? 0}개`,
       subtitle: '(활성/전체)',
     },
     {
       title: 'NFC 등록 수',
-      value: isNfcTagsLoading ? <CircularProgress size={40} /> : `${nfcTagsData?.total ?? 0}개`,
+      value: isDashboardLoading ? <CircularProgress size={40} /> : `${dashboardData?.nfcTags.activeCount ?? 0} / ${dashboardData?.nfcTags.total ?? 0}개`,
       subtitle: '(활성/전체)',
+    },
+    {
+      title: '리워드 지표',
+      value: 'N/A',
+      subtitle: '(준비 중)',
+      disabled: true,
+    },
+    {
+      title: '오류 및 이상 감지',
+      value: 'N/A',
+      subtitle: '(준비 중)',
+      disabled: true,
+    },
+    {
+      title: '프로모션 공지 관리',
+      value: 'N/A',
+      subtitle: '(준비 중)',
+      disabled: true,
     }
   ];
   
-  const ongoingContents = contentsData?.items.filter(c => c.is_open) ?? [];
+  // API 응답에서 진행중인 콘텐츠 목록 가져오기
+  const ongoingContents = dashboardData?.ongoingContents ?? [];
 
   return (
     <Box>
@@ -72,17 +121,37 @@ export default function DashboardContent() {
         </Button>
       </Box>
 
-      <Box sx={{ display: 'flex', gap: 3, mb: 3 }}>
+      {/* [3. 수정] Grid -> Box Flexbox 레이아웃으로 변경 (2x3) */}
+      <Box 
+        sx={{ 
+          display: 'flex', 
+          flexWrap: 'wrap',
+          gap: 3, // theme.spacing(3) == 24px
+          mb: 3 
+        }}
+      >
         {statCards.map((card, index) => (
-          <Card key={index} sx={{ flex: 1, boxShadow: 1 }}>
-            <CardContent sx={{ textAlign: 'center', py: 4 }}>
-              <Typography variant="h6" sx={{ mb: 2, color: 'text.secondary' }}>{card.title}</Typography>
-              <Typography variant="h3" sx={{ fontWeight: 'bold', mb: 1.5, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {card.value}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">{card.subtitle}</Typography>
-            </CardContent>
-          </Card>
+          <Box 
+            key={index}
+            sx={{
+              // theme.spacing(3) = 24px
+              // 3열 (md): calc(33.333% - 16px) -> 16px = (24px * 2 / 3)
+              // 2열 (sm): calc(50% - 12px)      -> 12px = (24px / 2)
+              // 1열 (xs): 100%
+              width: {
+                xs: '100%',
+                sm: 'calc(50% - 12px)', 
+                md: 'calc(33.333% - 16px)'
+              }
+            }}
+          >
+            <StatCard 
+              title={card.title} 
+              value={card.value} 
+              subtitle={card.subtitle} 
+              disabled={card.disabled}
+            />
+          </Box>
         ))}
       </Box>
 
@@ -106,8 +175,10 @@ export default function DashboardContent() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {isContentsLoading ? (
+                {isDashboardLoading ? (
                   <TableRow><TableCell colSpan={6} align="center"><CircularProgress /></TableCell></TableRow>
+                ) : isError ? (
+                   <TableRow><TableCell colSpan={6} align="center">데이터를 불러오는데 실패했습니다.</TableCell></TableRow>
                 ) : ongoingContents.length > 0 ? (
                   ongoingContents.map(content => (
                     <TableRow key={content.id} sx={{ '&:hover': { bgcolor: 'grey.50' } }}>
@@ -116,7 +187,8 @@ export default function DashboardContent() {
                       <TableCell>
                         {content.start_at ? new Date(content.start_at).toLocaleDateString() : '상시'} ~ {content.end_at ? new Date(content.end_at).toLocaleDateString() : ''}
                       </TableCell>
-                      <TableCell>0</TableCell>
+                      {/* 참여인원 데이터 바인딩 */}
+                      <TableCell>{content.participant_count ?? 0}</TableCell>
                       <TableCell><Button size="small">메뉴 / 세팅</Button></TableCell>
                       <TableCell><Button size="small">종료 시작 삭제</Button></TableCell>
                     </TableRow>
