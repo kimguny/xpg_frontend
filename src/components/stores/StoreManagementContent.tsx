@@ -124,7 +124,7 @@ export default function StoreManagementContent() {
                         variant="outlined" 
                         size="small" 
                         sx={{ mr: 1 }}
-                        onClick={() => router.push(`/save/stores/manage/${store.id}/edit`)}
+                        onClick={() => router.push(`/save/stores/${store.id}/edit`)}
                       >
                         수정
                       </Button>
