@@ -458,3 +458,60 @@ export const adjustAdminUserPoints = async ({
   );
   return response.data;
 };
+
+export interface NFCTagCreatePayload {
+  udid: string;
+  tag_name: string;
+  address?: string | null;
+  floor_location?: string | null;
+  media_url?: string | null;
+  link_url?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  tap_message?: string | null;
+  point_reward?: number;
+  cooldown_sec?: number;
+  use_limit?: number | null;
+  is_active?: boolean;
+  category?: string | null;
+}
+
+// UDID를 제외한 모든 필드를 선택적으로(Partial) 만듭니다.
+export type NFCTagUpdatePayload = Partial<Omit<NFCTagCreatePayload, 'udid'>>;
+
+/**
+ * 관리자용: 새 NFC 태그 생성 (POST /admin/nfc-tags)
+ */
+export const createAdminNfcTag = async (payload: NFCTagCreatePayload): Promise<NfcTag> => {
+  const response = await apiClient.post<NfcTag>('/admin/nfc-tags', payload);
+  return response.data;
+};
+
+/**
+ * 관리자용: 특정 NFC 태그 상세 조회 (GET /admin/nfc-tags/{nfcId})
+ */
+export const getAdminNfcTagById = async (nfcId: string): Promise<NfcTag> => {
+  const response = await apiClient.get<NfcTag>(`/admin/nfc-tags/${nfcId}`);
+  return response.data;
+};
+
+/**
+ * 관리자용: NFC 태그 수정 (PATCH /admin/nfc-tags/{nfcId})
+ */
+export const updateAdminNfcTag = async ({
+  nfcId,
+  payload,
+}: {
+  nfcId: string;
+  payload: NFCTagUpdatePayload;
+}): Promise<NfcTag> => {
+  const response = await apiClient.patch<NfcTag>(`/admin/nfc-tags/${nfcId}`, payload);
+  return response.data;
+};
+
+/**
+ * 관리자용: NFC 태그 삭제 (DELETE /admin/nfc-tags/{nfcId})
+ */
+export const deleteAdminNfcTag = async (nfcId: string): Promise<void> => {
+  await apiClient.delete(`/admin/nfc-tags/${nfcId}`);
+};
