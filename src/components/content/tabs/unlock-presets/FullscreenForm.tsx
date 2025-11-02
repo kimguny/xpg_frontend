@@ -11,9 +11,9 @@ interface FullscreenFormProps {
 export default function FullscreenForm({ control }: FullscreenFormProps) {
   return (
     <Box>
-      <Controller name="title" control={control} render={({ field }) => <TextField {...field} label="서브 타이틀 입력" fullWidth sx={{ mb: 2 }} />} />
-      <Controller name="bottom_text" control={control} render={({ field }) => <TextField {...field} label="하단 텍스트 입력" fullWidth sx={{ mb: 2 }} />} />
-      <Controller name="image_url" control={control} render={({ field }) => <TextField {...field} label="이미지 URL" fullWidth sx={{ mb: 2 }} />} />
+      <Controller name="title" control={control} render={({ field }) => <TextField {...field} value={field.value || ''} label="서브 타이틀 입력" fullWidth sx={{ mb: 2 }} />} />
+      <Controller name="bottom_text" control={control} render={({ field }) => <TextField {...field} value={field.value || ''} label="하단 텍스트 입력" fullWidth sx={{ mb: 2 }} />} />
+      <Controller name="image_url" control={control} render={({ field }) => <TextField {...field} value={field.value || ''} label="이미지 URL" fullWidth sx={{ mb: 2 }} />} />
       <FormControl component="fieldset">
         <FormLabel component="legend" sx={{ fontSize: '0.8rem' }}>다음 액션</FormLabel>
         <Controller name="next_action" control={control} render={({ field }) => (

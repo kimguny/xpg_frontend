@@ -247,7 +247,7 @@ const onSubmit: SubmitHandler<StageFormData> = (data) => {
             )}
 
             {activeTab === 1 && <HintSettingsTab stageId={stageId} hints={existingStage?.hints || []} />}
-            {activeTab === 2 && <PuzzleSettingsTab stageId={stageId} />}
+            {activeTab === 2 && <PuzzleSettingsTab stageId={stageId} puzzles={existingStage?.puzzles || []} />}
             {activeTab === 3 && <UnlockSettingsTab stageId={stageId}/>}
             
             <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', pt: 3, mt: 3, borderTop: '1px solid', borderColor: 'divider' }}>

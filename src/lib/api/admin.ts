@@ -216,11 +216,7 @@ export interface Stage {
   background_image_url: string | null;
   thumbnail_url: string | null;
   meta: object | null;
-  puzzles?: {
-    style: string;
-    showWhen: string;
-    config: PuzzleConfigData;
-  }[];
+  puzzles?: Puzzle[];
   unlock_config?: {
     preset: 'fullscreen' | 'popup';
     next_action: 'next_step' | 'next_stage';
@@ -356,19 +352,29 @@ export const createAdminHint = async ({
   return response.data;
 };
 // 1. 요청 시 보내는 데이터의 타입 (기존과 동일)
+// export interface PuzzlePayload {
+//   puzzles: {
+//     style: 'image' | 'text';
+//     showWhen: 'always' | 'after_clear';
+//     config: {
+//       image_url?: string;
+//       image_desc?: string;
+//       text?: string;
+//       answer_style: '4_digits' | '6_digits' | 'text';
+//       answer: string;
+//       bonus_coin?: number;
+//     };
+//   }[];
+// }
+
+export interface Puzzle {
+  style: 'image' | 'text';
+  showWhen: 'always' | 'after_clear';
+  config: PuzzleConfigData;
+}
+
 export interface PuzzlePayload {
-  puzzles: {
-    style: 'image' | 'text';
-    showWhen: 'always' | 'after_clear';
-    config: {
-      image_url?: string;
-      image_desc?: string;
-      text?: string;
-      answer_style: '4_digits' | '6_digits' | 'text';
-      answer: string;
-      bonus_coin?: number;
-    };
-  }[];
+  puzzles: Puzzle[];
 }
 
 // 2. API가 응답으로 돌려주는 데이터의 타입 (새로 정의)
