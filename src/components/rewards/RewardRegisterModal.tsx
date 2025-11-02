@@ -13,32 +13,51 @@ import {
   Button,
   FormControlLabel,
   Checkbox,
+  CircularProgress, // 로딩 표시를 위해 추가
 } from '@mui/material';
-import { useCreateStoreReward } from '@/hooks/mutation/useCreateStoreReward';
-import { StoreRewardCreatePayload } from '@/lib/api/admin';
 
-// 1. [수정] Props 인터페이스: storeId를 받도록 함
+//  훅 및 타입 임포트 추가/수정
+import { useCreateStoreReward } from '@/hooks/mutation/useCreateStoreReward';
+import { useUpdateStoreReward } from '@/hooks/mutation/useUpdateStoreReward'; // 수정 훅 추가
+import { useGetStoreRewardById } from '@/hooks/query/useGetStoreRewardById'; // 상세 조회 훅 추가
+import { StoreRewardCreatePayload, StoreRewardUpdatePayload } from '@/lib/api/admin';
+
+// 1. [수정] Props 인터페이스: rewardId를 추가하여 타입 오류 해결
 interface RewardRegisterModalProps {
   open: boolean;
   onClose: () => void;
   mode: 'register' | 'edit';
-  storeId: string | undefined; // 상품이 속할 매장의 ID
+  storeId?: string; 
+  //  타입 오류 해결: rewardId 추가
+  rewardId?: string | null; 
 }
 
-// 2. [추가] 폼 데이터 타입 (UI 스크린샷 및 스키마 기반)
+// 2. 폼 데이터 타입은 그대로 유지
 type RewardFormData = {
   product_name: string;
   product_desc: string;
   image_url: string;
   price_coin: string;
   stock_qty: string;
-  is_unlimited: boolean; // 재고 무제한 체크박스용
+  is_unlimited: boolean; 
   is_active: boolean;
 };
 
-export default function RewardRegisterModal({ open, onClose, mode, storeId }: RewardRegisterModalProps) {
+export default function RewardRegisterModal({ open, onClose, mode, storeId, rewardId }: RewardRegisterModalProps) {
   
-  // 3. [추가] react-hook-form 및 API 훅 초기화
+  const isEditMode = mode === 'edit' && !!rewardId;
+
+  //  훅 초기화: storeId는 유효성 검사를 위해 사용
+  const validStoreId = storeId || ''; 
+  const createRewardMutation = useCreateStoreReward(validStoreId);
+  const updateRewardMutation = useUpdateStoreReward(); //  수정 훅 초기화
+
+//  수정 모드 데이터 로딩 훅
+  const { data: initialData, isLoading: isDataLoading } = useGetStoreRewardById(
+    isEditMode ? rewardId : null
+  );
+  
+  // 3. react-hook-form 초기화는 그대로 유지
   const { control, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<RewardFormData>({
     defaultValues: {
       product_name: '',
@@ -51,60 +70,98 @@ export default function RewardRegisterModal({ open, onClose, mode, storeId }: Re
     },
   });
 
-  const createRewardMutation = useCreateStoreReward(storeId!);
   const isUnlimited = watch('is_unlimited');
 
-  // 4. [추가] 재고 무제한 체크 시 수량 필드 비활성화
+  // 4. 재고 무제한 체크 시 수량 필드 비활성화 로직 (유지)
   useEffect(() => {
     if (isUnlimited) {
       setValue('stock_qty', '');
     }
   }, [isUnlimited, setValue]);
 
-  // 5. [추가] 모달이 닫힐 때 폼 리셋
+  // 5. 모달이 열릴 때/데이터 로딩 완료 시 폼 리셋 및 데이터 바인딩 로직 추가
   useEffect(() => {
-    if (!open) {
-      reset();
+    if (open) {
+        if (isEditMode && initialData) {
+            //  수정 모드: API 데이터로 폼 채우기
+            reset({
+                product_name: initialData.product_name,
+                product_desc: initialData.product_desc || '',
+                image_url: initialData.image_url || '',
+                price_coin: String(initialData.price_coin),
+                stock_qty: initialData.stock_qty === null ? '' : String(initialData.stock_qty),
+                is_unlimited: initialData.stock_qty === null,
+                is_active: initialData.is_active,
+            });
+        } else if (!isEditMode) {
+            //  등록 모드: 기본값으로 리셋
+            reset();
+        }
     }
-  }, [open, reset]);
+    //  모달이 닫힐 때만 리셋하는 로직은 제거하고, open/mode 변경 시 리셋/바인딩하도록 수정했습니다.
+  }, [open, isEditMode, initialData, reset]);
 
-  // 6. [추가] 폼 제출(상품 등록) 핸들러
+
+  // 6. [수정] 폼 제출(상품 등록/수정) 핸들러
   const onSubmit: SubmitHandler<RewardFormData> = (data) => {
-    if (!storeId) {
-      alert('매장 ID가 없어 상품을 등록할 수 없습니다.');
-      return;
-    }
-
-    const payload: StoreRewardCreatePayload = {
+    
+    // API Payload 변환 로직
+    const payload = {
       product_name: data.product_name,
       product_desc: data.product_desc || null,
       image_url: data.image_url || null,
       price_coin: Number(data.price_coin) || 0,
-      stock_qty: data.is_unlimited ? null : (Number(data.stock_qty) || 0), // 무제한이면 null
+      stock_qty: data.is_unlimited ? null : (data.stock_qty ? Number(data.stock_qty) : 0), 
       is_active: data.is_active,
     };
-
-    createRewardMutation.mutate(payload, {
-      onSuccess: () => {
-        onClose(); // 성공 시 모달 닫기
+    
+    if (isEditMode && rewardId) {
+      //  수정 모드 API 호출
+      updateRewardMutation.mutate({ 
+        rewardId, 
+        payload: payload as StoreRewardUpdatePayload
+      }, {
+        onSuccess: () => onClose(),
+        onError: (err) => alert(`상품 수정 실패: ${err.message}`),
+      });
+    } else {
+      if (!storeId) {
+        alert('매장 ID가 없어 상품을 등록할 수 없습니다.');
+        return;
       }
-    });
+      //  등록 모드 API 호출
+      createRewardMutation.mutate(payload as StoreRewardCreatePayload, {
+        onSuccess: () => {
+          onClose(); // 성공 시 모달 닫기
+        },
+        onError: (err) => alert(`상품 등록 실패: ${err.message}`),
+      });
+    }
   };
 
-  const isLoading = createRewardMutation.isPending;
+  const isLoading = createRewardMutation.isPending || updateRewardMutation.isPending;
+  
+  if (isEditMode && isDataLoading) {
+    return (
+      <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 600 }}>상품 데이터 불러오는 중...</DialogTitle>
+        <DialogContent sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>
+            <CircularProgress />
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ fontWeight: 600 }}>
-        {mode === 'register' ? '상품 등록' : '상품 수정'}
+        {isEditMode ? '상품 수정' : '상품 등록'}
       </DialogTitle>
       
-      {/* 7. [수정] <form> 태그와 onSubmit 핸들러 연결 */}
+      {/* 7. <form> 태그와 onSubmit 핸들러 연결 */}
       <Box component="form" onSubmit={handleSubmit(onSubmit)}>
         <DialogContent dividers>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, pt: 1 }}>
-            
-            {/* [수정] '매장 선택' 제거 (storeId prop으로 받음) */}
             
             <Controller
               name="product_name"
@@ -117,6 +174,7 @@ export default function RewardRegisterModal({ open, onClose, mode, storeId }: Re
                   placeholder="예: 장미의 거리 이벤트 기념품" 
                   error={!!fieldState.error}
                   helperText={fieldState.error?.message}
+                  fullWidth
                 />
               )}
             />
@@ -131,12 +189,11 @@ export default function RewardRegisterModal({ open, onClose, mode, storeId }: Re
                   placeholder="상품 설명 및 사이즈 등" 
                   multiline 
                   rows={3} 
+                  fullWidth
                 />
               )}
             />
 
-            {/* (참고: UI의 '카테고리'는 DB 스키마에 없습니다. 우선 제외) */}
-            
             <Controller
               name="image_url"
               control={control}
@@ -145,10 +202,10 @@ export default function RewardRegisterModal({ open, onClose, mode, storeId }: Re
                   {...field} 
                   label="제품 이미지 URL" 
                   placeholder="https://" 
+                  fullWidth
                 />
               )}
             />
-            {/* (파일 선택 버튼은 별도 업로드 API 구현 필요) */}
 
             <Controller
               name="price_coin"
@@ -162,6 +219,7 @@ export default function RewardRegisterModal({ open, onClose, mode, storeId }: Re
                   placeholder="예: 3000" 
                   error={!!fieldState.error}
                   helperText={fieldState.error?.message}
+                  fullWidth
                 />
               )}
             />
@@ -206,9 +264,9 @@ export default function RewardRegisterModal({ open, onClose, mode, storeId }: Re
           </Box>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
-          <Button onClick={onClose}>취소</Button>
+          <Button onClick={onClose} disabled={isLoading}>취소</Button>
           <Button type="submit" variant="contained" disabled={isLoading}>
-            {isLoading ? '저장 중...' : (mode === 'register' ? '등록' : '수정')}
+            {isLoading ? <CircularProgress size={24} color="inherit" /> : (isEditMode ? '수정 완료' : '등록')}
           </Button>
         </DialogActions>
       </Box>

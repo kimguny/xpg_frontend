@@ -669,3 +669,66 @@ export const createAdminStoreReward = async ({
   );
   return response.data;
 };
+
+// src/lib/api/admin.ts 파일에 다음 API 함수를 추가합니다.
+
+// (1) 매장 상품(리워드) 수정 요청 타입
+export type StoreRewardUpdatePayload = Partial<StoreRewardCreatePayload>;
+
+// (2) 리워드 목록 조회를 위한 파라미터 타입 (Pagination 필요)
+export interface GetStoreRewardsParams {
+  q?: string; // 검색어 (상품명/카테고리 등)
+  category?: string; // 카테고리 필터
+  is_active?: boolean; // 활성 상태 필터
+  page?: number;
+  size?: number;
+  sort?: string; // 정렬
+}
+
+/**
+ * 관리자용: 매장 리워드(상품) 목록 조회 (GET /admin/rewards)
+ * (테이블 목록을 채우기 위해 사용)
+ */
+export const getAdminStoreRewards = async (
+  params: GetStoreRewardsParams = {}
+): Promise<PaginatedResponse<StoreReward>> => {
+  // 예시: /admin/rewards?page=1&size=10&q=빵
+  const response = await apiClient.get<PaginatedResponse<StoreReward>>(
+    '/admin/rewards', 
+    { params }
+  );
+  return response.data;
+};
+
+/**
+ * 관리자용: 특정 리워드(상품) 상세 조회 (GET /admin/rewards/{rewardId})
+ * (수정 모달에 초기 데이터를 채우기 위해 필요합니다)
+ */
+export const getAdminStoreRewardById = async (rewardId: string): Promise<StoreReward> => {
+  const response = await apiClient.get<StoreReward>(`/admin/rewards/${rewardId}`);
+  return response.data;
+};
+
+/**
+ * 관리자용: 매장 리워드(상품) 정보 수정 (PATCH /admin/rewards/{rewardId})
+ */
+export const updateAdminStoreReward = async ({
+  rewardId,
+  payload,
+}: {
+  rewardId: string;
+  payload: StoreRewardUpdatePayload;
+}): Promise<StoreReward> => {
+  const response = await apiClient.patch<StoreReward>(
+    `/admin/rewards/${rewardId}`,
+    payload
+  );
+  return response.data;
+};
+
+/**
+ * 관리자용: 매장 리워드(상품) 삭제 (DELETE /admin/rewards/{rewardId})
+ */
+export const deleteAdminStoreReward = async (rewardId: string): Promise<void> => {
+  await apiClient.delete(`/admin/rewards/${rewardId}`);
+};

@@ -1,7 +1,7 @@
 // src/components/rewards/RewardManagementContent.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -22,30 +22,43 @@ import {
   Select,
   MenuItem,
   FormControl,
+  CircularProgress, // 로딩 인디케이터 추가
+  Pagination, // 페이지네이션 컴포넌트 추가
 } from '@mui/material';
 import { Add, Search } from '@mui/icons-material';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import RewardRegisterModal from './RewardRegisterModal';
 
+// ======================================================================
+//  API 연동을 위해 훅 및 타입 임포트 (추가)
+// ======================================================================
+import { useGetStoreRewards } from '@/hooks/query/useGetStoreRewards';
+import { useDeleteStoreReward } from '@/hooks/mutation/useDeleteStoreReward';
+import { GetStoreRewardsParams, StoreReward } from '@/lib/api/admin';
+
+// ----------------------------------------------------------------------
+//  기존 타입 및 상수 재정의 (API 연동에 맞게)
+// ----------------------------------------------------------------------
+
+//  API 응답 타입(StoreReward)을 기반으로 인터페이스를 정의합니다.
+//    (StoreReward 타입이 id: string, image_url 등으로 정의되어 있다고 가정)
+type APIBasedRewardItem = StoreReward & {
+  // UI 호환성을 위해 임시로 remainingQty 추가. (실제 DB에 없으므로 재고 수량으로 대체)
+  remainingQty: number; 
+};
+
 interface StatCardProps {
   title: string;
-  value: string;
+  //  API 연동을 위해 value 타입을 string | number로 확장
+  value: string | number;
 }
 
-interface RewardItem {
-  id: number;
-  imageUrl: string;
-  productName: string;
-  category: string;
-  points: number;
-  totalQty: number;
-  remainingQty: number;
-}
-
-const initialRewards: RewardItem[] = [
-  { id: 1, imageUrl: 'https://via.placeholder.com/40', productName: '목포의 눈물빵', category: '베이커리', points: 3000, totalQty: 100, remainingQty: 30 }, // 정상
-  { id: 2, imageUrl: 'https://via.placeholder.com/40', productName: '새우바게트', category: '베이커리', points: 5000, totalQty: 50, remainingQty: 5 }, // 재고 임박
-  { id: 3, imageUrl: 'https://via.placeholder.com/40', productName: '크림치즈 바게트', category: '베이커리', points: 4500, totalQty: 50, remainingQty: 0 }, // 품절
+//  실제 사용하지 않고 초기값 유지용으로만 둡니다.
+const initialRewards: APIBasedRewardItem[] = [
+  // id를 string(UUID)으로 가정하여 타입 수정
+  { id: '1', product_name: '목포의 눈물빵', image_url: 'https://via.placeholder.com/40', price_coin: 3000, stock_qty: 100, is_active: true, exposure_order: 1, store_id: 'dummy', product_desc: '', remainingQty: 30, },
+  { id: '2', product_name: '새우바게트', image_url: 'https://via.placeholder.com/40', price_coin: 5000, stock_qty: 50, is_active: true, exposure_order: 2, store_id: 'dummy', product_desc: '', remainingQty: 5, },
+  { id: '3', product_name: '크림치즈 바게트', image_url: 'https://via.placeholder.com/40', price_coin: 4500, stock_qty: 0, is_active: true, exposure_order: 3, store_id: 'dummy', product_desc: '', remainingQty: 0, },
 ];
 
 const StatCard = ({ title, value }: StatCardProps) => (
@@ -57,41 +70,110 @@ const StatCard = ({ title, value }: StatCardProps) => (
   </Card>
 );
 
-// <<<<<<<<<<<<<<<<<<< 수정된 부분 1: 재고 상태 Chip 반환 함수 >>>>>>>>>>>>>>>>>>>>
 const getStatusChip = (remainingQty: number) => {
   if (remainingQty === 0) {
     return <Chip label="품절" color="error" size="small" />;
   }
-  if (remainingQty <= 10) { // 재고 임박 기준을 10개 이하로 설정
+  if (remainingQty <= 10) { 
     return <Chip label="임박" color="warning" size="small" />;
   }
   return <Chip label="정상" color="success" size="small" />;
 };
-// <<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>
-
+// ----------------------------------------------------------------------
+//  메인 컴포넌트 (API 연동)
+// ----------------------------------------------------------------------
 export default function RewardManagementContent() {
-  const [rewards, setRewards] = useState(initialRewards);
+  //  상태: 쿼리 및 페이징 파라미터 관리 (기존 상태는 삭제)
+  const [queryParams, setQueryParams] = useState<GetStoreRewardsParams>({
+    page: 1,
+    size: 10,
+    sort: 'created_at,DESC',
+    //  TODO: 매장 관리 페이지에서 넘어왔다면 store_id 필터 추가 필요
+  });
+  const [searchTerm, setSearchTerm] = useState('');
+
+  //  UI 상태 관리
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
-  const [selectedRewardId, setSelectedRewardId] = useState<number | null>(null);
+  //  ID를 string (UUID)으로 변경
+  const [selectedRewardId, setSelectedRewardId] = useState<string | null>(null);
 
-  const openDeleteDialog = (id: number) => {
+  //  훅: 데이터 조회
+  const { data, isLoading, isFetching } = useGetStoreRewards(queryParams);
+  //  API 데이터 사용
+  const apiRewards = (data?.items || []) as StoreReward[]; 
+  const totalItems = data?.total || 0;
+  
+  //  훅: 상품 삭제
+  const deleteMutation = useDeleteStoreReward();
+
+  //  UI 표시용 데이터 (API 필드명을 UI 필드명에 맞게 조정)
+  //    (remainingQty와 category는 API에 없으므로 임시로 처리)
+  const rewards = useMemo(() => {
+    return apiRewards.map(reward => ({
+      // 기존 UI 필드명 (id: number, imageUrl, productName, points, totalQty, remainingQty)에 맞춤
+      id: reward.id, // string(UUID) 사용
+      imageUrl: reward.image_url || 'https://via.placeholder.com/40',
+      productName: reward.product_name,
+      category: 'N/A', // DB/API에 카테고리 필드가 없으므로 N/A 처리
+      points: reward.price_coin,
+      totalQty: reward.stock_qty === null ? 99999 : reward.stock_qty, // null이면 무제한으로 표시
+      remainingQty: reward.stock_qty === null ? 99999 : reward.stock_qty, // 재고 상태 표시를 위해 임시로 stock_qty 재사용
+      store_id: reward.store_id, // 모달에 전달하기 위해 추가
+    }));
+  }, [apiRewards]);
+
+
+  //  이벤트 핸들러: 삭제 (ID 타입을 string으로 변경)
+  const openDeleteDialog = (id: string) => {
     setSelectedRewardId(id);
     setDeleteDialogOpen(true);
   };
 
   const handleConfirmDelete = () => {
     if (selectedRewardId) {
-      setRewards(prev => prev.filter(r => r.id !== selectedRewardId));
+      //  API 호출로 변경
+      deleteMutation.mutate(selectedRewardId, {
+        onSuccess: () => {
+          setDeleteDialogOpen(false);
+          setSelectedRewardId(null);
+        },
+        onError: (err: Error) => {
+            alert(`삭제 실패: ${err.message}`);
+            setDeleteDialogOpen(false);
+        }
+      });
     }
-    setDeleteDialogOpen(false);
-    setSelectedRewardId(null);
   };
 
-  const openEditModal = (id: number) => {
+  //  이벤트 핸들러: 수정/등록 모달 (ID 타입을 string으로 변경)
+  const openEditModal = (id: string | null) => {
     setSelectedRewardId(id);
     setEditModalOpen(true);
   };
+
+  //  이벤트 핸들러: 페이지네이션
+  const handlePageChange = (event: React.ChangeEvent<unknown>, page: number) => {
+      setQueryParams(prev => ({ ...prev, page }));
+  };
+
+  //  이벤트 핸들러: 검색
+  const handleSearch = () => {
+      setQueryParams(prev => ({ ...prev, q: searchTerm, page: 1 }));
+  };
+  
+  //  임시 통계 계산 (목록 데이터 기반)
+  const tempStats = useMemo(() => {
+    const lowStockCount = rewards.filter(r => r.remainingQty <= 10 && r.remainingQty > 0).length;
+    return {
+      totalPoints: rewards.reduce((sum, r) => sum + r.points, 0).toLocaleString() + ' P',
+      lowStockCount: lowStockCount + '개',
+    };
+  }, [rewards]);
+  
+  // ----------------------------------------------------------------------
+  //  렌더링
+  // ----------------------------------------------------------------------
 
   return (
     <Box>
@@ -99,10 +181,10 @@ export default function RewardManagementContent() {
 
       {/* 상단 통계 카드 */}
       <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-        <StatCard title="오늘 교환건수" value="10건" />
-        <StatCard title="누적 교환 건수" value="1,234건" />
-        <StatCard title="총 포인트 차감" value="5,432,100P" />
-        <StatCard title="재고 임박" value="3개" />
+        <StatCard title="오늘 교환건수" value="N/A" />
+        <StatCard title="누적 교환 건수" value="N/A" />
+        <StatCard title="총 포인트 차감" value={tempStats.totalPoints} />
+        <StatCard title="재고 임박" value={tempStats.lowStockCount} />
       </Box>
 
       {/* 필터 및 등록 버튼 */}
@@ -118,10 +200,20 @@ export default function RewardManagementContent() {
           <TextField
             size="small"
             placeholder="검색어"
-            InputProps={{ startAdornment: <InputAdornment position="start"><Search /></InputAdornment> }}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
+            InputProps={{ 
+                endAdornment: (
+                    <InputAdornment position="end">
+                        <Search sx={{ cursor: 'pointer' }} onClick={handleSearch} />
+                    </InputAdornment>
+                )
+            }}
           />
         </Box>
-        <Button variant="contained" startIcon={<Add />} onClick={() => setEditModalOpen(true)}>상품 등록</Button>
+        {/*  등록 버튼: ID 없이 호출 */}
+        <Button variant="contained" startIcon={<Add />} onClick={() => openEditModal(null)}>상품 등록</Button>
       </Box>
 
       {/* 리워드 테이블 */}
@@ -141,27 +233,45 @@ export default function RewardManagementContent() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {rewards.map((reward) => (
-                <TableRow key={reward.id} sx={{ '&:hover': { bgcolor: 'grey.50' } }}>
-                  <TableCell><Avatar src={reward.imageUrl} variant="rounded" /></TableCell>
-                  <TableCell>{reward.productName}</TableCell>
-                  <TableCell>{reward.category}</TableCell>
-                  <TableCell>{reward.points.toLocaleString()} P</TableCell>
-                  <TableCell>{reward.totalQty}</TableCell>
-                  <TableCell>{reward.remainingQty}</TableCell>
-                  {/* <<<<<<<<<<<<<<<<<<< 수정된 부분 2: 상태 Chip 표시 >>>>>>>>>>>>>>>>>>>> */}
-                  <TableCell>
-                    {getStatusChip(reward.remainingQty)}
-                  </TableCell>
-                  {/* <<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>> */}
-                  <TableCell>
-                    <Button variant="outlined" size="small" onClick={() => openEditModal(reward.id)}>수정</Button>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {isLoading || isFetching ? (
+                  <TableRow><TableCell colSpan={8} align="center"><CircularProgress size={24} sx={{ py: 2 }} /></TableCell></TableRow>
+              ) : rewards.length === 0 ? (
+                  <TableRow><TableCell colSpan={8} align="center"><Typography color="text.secondary" sx={{ py: 2 }}>등록된 리워드 상품이 없습니다.</Typography></TableCell></TableRow>
+              ) : (
+                rewards.map((reward) => (
+                  <TableRow key={reward.id} sx={{ '&:hover': { bgcolor: 'grey.50' } }}>
+                    <TableCell><Avatar src={reward.imageUrl} variant="rounded" /></TableCell>
+                    <TableCell>{reward.productName}</TableCell>
+                    <TableCell>{reward.category}</TableCell>
+                    <TableCell>{reward.points.toLocaleString()} P</TableCell>
+                    {/*  총 수량 (totalQty) 필드는 DB에서 stock_qty임 */}
+                    <TableCell>{reward.totalQty === 99999 ? '무제한' : reward.totalQty}</TableCell>
+                    {/*  잔여 수량 (remainingQty) 필드는 DB에서 stock_qty임 */}
+                    <TableCell>{reward.remainingQty === 99999 ? '무제한' : reward.remainingQty}</TableCell>
+                    <TableCell>
+                      {getStatusChip(reward.remainingQty)}
+                    </TableCell>
+                    <TableCell>
+                      <Button variant="outlined" size="small" sx={{ mr: 1 }} onClick={() => openEditModal(reward.id as string)}>수정</Button>
+                      <Button variant="outlined" color="error" size="small" onClick={() => openDeleteDialog(reward.id as string)}>삭제</Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </TableContainer>
+        {/*  페이지네이션 */}
+        {rewards.length > 0 && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3, py: 2 }}>
+                <Pagination
+                    count={Math.ceil(totalItems / (queryParams.size || 10))}
+                    page={queryParams.page}
+                    onChange={handlePageChange}
+                    color="primary"
+                />
+            </Box>
+        )}
       </Card>
 
       <ConfirmDialog
@@ -169,15 +279,17 @@ export default function RewardManagementContent() {
         onClose={() => setDeleteDialogOpen(false)}
         onConfirm={handleConfirmDelete}
         title="리워드 상품 삭제"
-        message="정말로 이 상품을 삭제하시겠습니까?"
+        message={`정말로 리워드 ID: ${selectedRewardId} 상품을 삭제하시겠습니까?`}
+        isPending={deleteMutation.isPending} 
       />
       
       <RewardRegisterModal
         open={editModalOpen}
         onClose={() => setEditModalOpen(false)}
         mode={selectedRewardId ? 'edit' : 'register'}
-        storeId={""}
+        rewardId={selectedRewardId}
+        storeId={rewards.length > 0 ? rewards[0].store_id : 'DUMMY_STORE_ID'}
       />
     </Box>
   );
-}
+} 
