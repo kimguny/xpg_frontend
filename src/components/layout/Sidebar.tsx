@@ -140,24 +140,21 @@ export default function Sidebar() {
         <Box sx={{ textAlign: 'center', mb: 4, mt: 2 }}>
           <Box
             sx={{
-              width: 56,
-              height: 56,
-              bgcolor: 'black',
+              width: 200,
+              height: 200,
               mx: 'auto',
               mb: 1,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              borderRadius: 2
+              borderRadius: 2,
+              backgroundImage: `url('/xpg-icon.png')`, // public 폴더 경로
+              backgroundSize: 'contain', // 박스 크기에 맞춰 이미지를 포함
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'center',
             }}
           >
-            <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold' }}>
-              ✕
-            </Typography>
           </Box>
-          <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
-            X-Play.G
-          </Typography>
         </Box>
 
         {/* Menu Items */}
