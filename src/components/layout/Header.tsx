@@ -1,14 +1,21 @@
-// src/components/layout/Header.tsx
 'use client';
 
-import { Box, Typography, IconButton, Button } from '@mui/material';
+import { Box, Typography, IconButton, Button, CircularProgress } from '@mui/material';
 import { Settings } from '@mui/icons-material';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
+import { useGetMe } from '@/hooks/query/useGetMe';
 
 export default function Header() {
   const router = useRouter();
+  const queryClient = useQueryClient();
+
+  const { data: me, isLoading } = useGetMe();
 
   const handleLogout = () => {
+    localStorage.removeItem('access_token');
+    queryClient.clear();
+    
     router.push('/login');
   };
 
@@ -19,9 +26,14 @@ export default function Header() {
     >
       <Box className="flex items-center space-x-4">
         <Typography variant="body2" className="text-gray-600">
-          xpg_admin@gmail.com
+          {isLoading ? (
+            <CircularProgress size={20} sx={{ mr: 1 }} />
+          ) : (
+            me?.email || '이메일 없음'
+          )}
         </Typography>
-        <IconButton size="small" onClick={handleLogout}>
+        
+        <IconButton size="small" >
           <Settings />
         </IconButton>
         <Button 
@@ -42,3 +54,4 @@ export default function Header() {
     </Box>
   );
 }
+

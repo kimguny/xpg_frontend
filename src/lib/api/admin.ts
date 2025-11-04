@@ -945,3 +945,36 @@ export const uploadAdminImage = async (formData: FormData): Promise<ImageUploadR
   );
   return response.data;
 };
+
+// ==========================================================
+// 사용자 프로필 (GET /api/v1/me) API
+// ==========================================================
+
+// 1. GET /me API 응답 타입 (UserResponse 스키마 기반)
+export interface MeResponse {
+  id: string;
+  login_id: string;
+  email: string | null;
+  nickname: string | null;
+  profile_image_url: string | null;
+  email_verified: boolean;
+  status: string;
+  profile: {
+    name?: string;
+    phone?: string;
+    points?: number;
+  } | null; 
+  points: number;
+  created_at: string;
+  last_active_at: string | null;
+}
+
+/**
+ * [신규] 현재 로그인된 사용자 정보(me)를 조회합니다.
+ * (GET /api/v1/me)
+ */
+export const getMe = async (): Promise<MeResponse> => {
+  // apiClient가 /api/v1을 기본 경로로 사용한다고 가정
+  const response = await apiClient.get<MeResponse>('/me');
+  return response.data;
+};
