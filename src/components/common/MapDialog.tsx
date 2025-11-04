@@ -47,6 +47,8 @@ export default function MapDialog({ open, onClose, onLocationSelect }: MapDialog
     id: 'google-map-script',
     googleMapsApiKey: apiKey || "",
     libraries: libraries,
+    language: 'ko',
+    region: 'KR',
   });
 
   // 2. 지도 클릭 핸들러
