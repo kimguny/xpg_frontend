@@ -116,17 +116,19 @@ export default function RewardRegisterModal({ open, onClose, mode, storeId, rewa
             is_unlimited: initialData.stock_qty === null,
             is_active: initialData.is_active,
             exposure_order: String(initialData.exposure_order || 0), 
-            category: '기타', // TODO: API에 카테고리 필드 추가 필요
+            category: '기타',
         });
         
-        // TODO: initialData에 qr_image_url이 포함되어 오면, 해당 URL로 상태 설정 필요
-        // 예: if (initialData.qr_image_url) {
-        //      setQrDownloadUrl(initialData.qr_image_url);
-        //      setIsQrGenerated(true);
-        // }
-        
-        // 임시로 수정 모드일 때 QR이 생성된 것으로 간주 (DB 연동 후 위 TODO로 대체)
-        setIsQrGenerated(true); 
+        // DB에 저장된 qr_image_url이 있는지 확인
+        if (initialData.qr_image_url) {
+            // URL이 있으면, 다운로드 URL 상태에 저장하고 버튼 활성화
+            setQrDownloadUrl(initialData.qr_image_url);
+            setIsQrGenerated(true);
+        } else {
+            // URL이 없으면, 비활성화
+            setQrDownloadUrl(null);
+            setIsQrGenerated(false);
+        }
     }
   }, [open, isEditMode, initialData, reset]);
 

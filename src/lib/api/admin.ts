@@ -543,6 +543,7 @@ export interface StoreReward {
   stock_qty: number | null;
   is_active: boolean;
   exposure_order: number | null;
+  qr_image_url: string | null;
 }
 
 // (2) 매장 상품(리워드) 생성 요청 타입
