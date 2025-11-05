@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react'; // [1. 수정] useEffect 추가
+import { useState, useEffect, useMemo } from 'react'; // [1. useMemo 추가]
 import { useRouter } from 'next/navigation';
 import { useForm, Controller, SubmitHandler } from 'react-hook-form';
 import {
@@ -15,18 +15,28 @@ import {
   InputLabel,
   Checkbox,
   FormControlLabel,
-  CircularProgress, // [2. 추가] 로딩 스피너
+  CircularProgress,
+  Table, // [2. 테이블 관련 컴포넌트 추가]
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Avatar,
+  Chip,
 } from '@mui/material';
 import { Add } from '@mui/icons-material';
 import RewardRegisterModal from '@/components/rewards/RewardRegisterModal';
 import MapDialog from '@/components/common/MapDialog';
+import ConfirmDialog from '@/components/common/ConfirmDialog'; // [3. 삭제 확인 다이얼로그 추가]
 import { useCreateStore } from '@/hooks/mutation/useCreateStore';
-// [3. 수정] 수정에 필요한 훅과 타입들 import
 import { useUpdateStore } from '@/hooks/mutation/useUpdateStore';
 import { useGetStoreById } from '@/hooks/query/useGetStoreById';
-import { StoreCreatePayload, StoreUpdatePayload, Store } from '@/lib/api/admin';
+import { StoreCreatePayload, StoreUpdatePayload, Store, StoreReward } from '@/lib/api/admin';
+import { useDeleteStoreReward } from '@/hooks/mutation/useDeleteStoreReward'; // [4. 상품 삭제 훅 추가]
 
-// (폼 데이터 타입은 동일)
+// 폼 데이터 타입 (기존과 동일)
 type StoreFormData = {
   store_name: string;
   description: string;
@@ -40,25 +50,47 @@ type StoreFormData = {
   show_products: boolean;
 };
 
-// [4. 수정] props 인터페이스에 storeId 추가
+// Props 인터페이스 (기존과 동일)
 interface StoreRegisterFormProps {
   mode: 'register' | 'edit';
-  storeId?: string; // 수정 모드일 때 ID를 받음
+  storeId?: string;
 }
+
+// [5. 추가] 상품 상태 칩 (리워드 관리 페이지에서 가져옴)
+const getStatusChip = (reward: StoreReward) => {
+  if (!reward.is_active) {
+    return <Chip label="비활성" color="default" size="small" />;
+  }
+  if (reward.stock_qty === 0) {
+    return <Chip label="품절" color="error" size="small" />;
+  }
+  if (reward.stock_qty !== null && reward.stock_qty <= 10) {
+    return <Chip label="임박" color="warning" size="small" />;
+  }
+  return <Chip label="정상" color="success" size="small" />;
+};
+
 
 export default function StoreRegisterForm({ mode, storeId }: StoreRegisterFormProps) {
   const router = useRouter();
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMapOpen, setIsMapOpen] = useState(false);
   
   const isEditMode = mode === 'edit';
 
-  // [5. 추가] 데이터 페칭 및 뮤테이션 훅
+  // 데이터 페칭 및 뮤테이션 훅 (기존과 동일)
   const { data: existingData, isLoading: isLoadingData } = useGetStoreById(storeId);
   const createStoreMutation = useCreateStore();
-  const updateStoreMutation = useUpdateStore(storeId!); // '!'는 isEditMode일 때만 호출
+  const updateStoreMutation = useUpdateStore(storeId!);
 
-  // [6. 수정] react-hook-form에 'reset' 함수 추가
+  // [6. 추가] 상품 모달 및 삭제 관련 상태
+  const [rewardModalOpen, setRewardModalOpen] = useState(false);
+  const [selectedRewardId, setSelectedRewardId] = useState<string | null>(null);
+  const [rewardModalMode, setRewardModalMode] = useState<'register' | 'edit'>('register');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  
+  // [7. 추가] 상품 삭제 훅
+  const deleteRewardMutation = useDeleteStoreReward();
+
   const { control, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<StoreFormData>({
     defaultValues: {
       store_name: '',
@@ -76,12 +108,9 @@ export default function StoreRegisterForm({ mode, storeId }: StoreRegisterFormPr
 
   const isAlwaysOn = watch('is_always_on');
 
-  // [7. 추가] 수정 모드일 때, 데이터를 불러오면 폼에 채워넣는 useEffect
+  // 수정 모드 데이터 로드 (기존과 동일)
   useEffect(() => {
     if (isEditMode && existingData) {
-      // API 데이터(Store)를 폼 데이터(StoreFormData) 형식으로 변환
-      
-      // 날짜 형식을 'YYYY-MM-DD'로 변환 (input[type=date]의 value 형식)
       const formatDate = (dateString: string | null) => {
         if (!dateString) return '';
         try {
@@ -103,15 +132,14 @@ export default function StoreRegisterForm({ mode, storeId }: StoreRegisterFormPr
         map_image_url: existingData.map_image_url || '',
         show_products: existingData.show_products,
       };
-      reset(formData); // 폼 값 전체 갱신
+      reset(formData);
     }
   }, [isEditMode, existingData, reset]);
 
 
-  // 8. [수정] 폼 제출(매장 저장) 핸들러 (수정/생성 분기)
+  // 폼 제출(매장 저장) 핸들러 (기존과 동일)
   const onSubmit: SubmitHandler<StoreFormData> = (data) => {
     
-    // 공통 페이로드
     const payload: StoreCreatePayload | StoreUpdatePayload = {
       store_name: data.store_name,
       description: data.description || null,
@@ -126,10 +154,8 @@ export default function StoreRegisterForm({ mode, storeId }: StoreRegisterFormPr
     };
     
     if (isEditMode) {
-      // [수정] 수정 API 호출
       updateStoreMutation.mutate(payload as StoreUpdatePayload);
     } else {
-      // [기존] 생성 API 호출
       createStoreMutation.mutate(payload as StoreCreatePayload);
     }
   };
@@ -139,12 +165,44 @@ export default function StoreRegisterForm({ mode, storeId }: StoreRegisterFormPr
     setValue('longitude', location.lng.toString());
   };
 
-  // [9. 수정] 로딩 상태: 생성 또는 수정
+  // [8. 추가] 상품 모달 관련 핸들러
+  const handleOpenRewardModal = (mode: 'register' | 'edit', rewardId: string | null = null) => {
+    setRewardModalMode(mode);
+    setSelectedRewardId(rewardId);
+    setRewardModalOpen(true);
+  };
+  
+  const handleCloseRewardModal = () => {
+    setRewardModalOpen(false);
+    setSelectedRewardId(null);
+    // (상품 추가/수정 후 매장 데이터를 다시 불러올 수 있음)
+    // queryClient.invalidateQueries({ queryKey: ['storeById', storeId] });
+  };
+
+  // [9. 추가] 상품 삭제 관련 핸들러
+  const handleDeleteRewardClick = (rewardId: string) => {
+    setSelectedRewardId(rewardId);
+    setDeleteDialogOpen(true);
+  };
+  
+  const handleConfirmDeleteReward = () => {
+    if (selectedRewardId) {
+      deleteRewardMutation.mutate(selectedRewardId);
+    }
+    setDeleteDialogOpen(false);
+    setSelectedRewardId(null);
+  };
+
   const isLoading = createStoreMutation.isPending || updateStoreMutation.isPending;
   const title = isEditMode ? '매장 수정' : '매장 등록';
   const buttonText = isEditMode ? '수정하기' : '매장 저장';
 
-  // [10. 추가] 수정 모드에서 데이터 로딩 중일 때 스피너 표시
+  // [10. 추가] 표시할 상품 목록 (useMemo 사용)
+  const storeRewards = useMemo(() => {
+    return (existingData?.rewards || []) as StoreReward[];
+  }, [existingData]);
+
+
   if (isEditMode && isLoadingData) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
@@ -156,12 +214,14 @@ export default function StoreRegisterForm({ mode, storeId }: StoreRegisterFormPr
   return (
     <Box>
       <Typography variant="h5" sx={{ fontWeight: 'bold', mb: 2 }}>
-        {title} {/* [수정] 동적 타이틀 */}
+        {title}
       </Typography>
 
       <Box component="form" onSubmit={handleSubmit(onSubmit)}>
         <Card sx={{ p: 3 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            
+            {/* ... (매장 정보 폼 필드 - 기존과 동일) ... */}
             <Controller
               name="store_name"
               control={control}
@@ -303,19 +363,86 @@ export default function StoreRegisterForm({ mode, storeId }: StoreRegisterFormPr
           </Box>
         </Card>
 
-        {/* [11. 수정] '상품 추가' 버튼: 수정 모드일 때만 활성화 */}
-        <Box sx={{ my: 3 }}>
-          <Button 
-            variant="contained" 
-            startIcon={<Add />} 
-            onClick={() => setIsModalOpen(true)}
-            disabled={!isEditMode} // 수정 모드일 때만 활성화
-          >
-            상품 추가
-          </Button>
-        </Box>
+        {/* --- [11. 추가] 상품 목록 테이블 --- */}
+        {isEditMode && (
+          <Box sx={{ mt: 5 }}>
+            <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                매장 상품 관리
+              </Typography>
+              <Button 
+                variant="contained" 
+                startIcon={<Add />} 
+                onClick={() => handleOpenRewardModal('register', null)}
+              >
+                상품 추가
+              </Button>
+            </Box>
 
-        {/* 하단 저장 버튼 */}
+            <Card>
+              <TableContainer component={Paper} sx={{ boxShadow: 0 }}>
+                <Table>
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: 'grey.50' }}>
+                      <TableCell>이미지</TableCell>
+                      <TableCell>리워드명</TableCell>
+                      <TableCell>필요 포인트</TableCell>
+                      <TableCell>재고</TableCell>
+                      <TableCell>상태</TableCell>
+                      <TableCell>관리</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {storeRewards.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} align="center">
+                          이 매장에 등록된 상품이 없습니다.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      storeRewards.map((reward) => (
+                        <TableRow key={reward.id} sx={{ '&:hover': { bgcolor: 'grey.50' } }}>
+                          <TableCell>
+                            <Avatar src={reward.image_url || ''} variant="rounded" />
+                          </TableCell>
+                          <TableCell>{reward.product_name}</TableCell>
+                          <TableCell>{reward.price_coin.toLocaleString()} P</TableCell>
+                          <TableCell>
+                            {reward.stock_qty === null ? '무제한' : reward.stock_qty}
+                          </TableCell>
+                          <TableCell>
+                            {getStatusChip(reward)}
+                          </TableCell>
+                          <TableCell>
+                            <Button 
+                              variant="outlined" 
+                              size="small" 
+                              sx={{ mr: 1 }} 
+                              onClick={() => handleOpenRewardModal('edit', reward.id)}
+                            >
+                              수정
+                            </Button>
+                            <Button 
+                              variant="outlined" 
+                              color="error" 
+                              size="small" 
+                              onClick={() => handleDeleteRewardClick(reward.id)}
+                            >
+                              삭제
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Card>
+          </Box>
+        )}
+        {/* --- [상품 목록 테이블 끝] --- */}
+
+
         <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mt: 4 }}>
           <Button 
             variant="outlined" 
@@ -331,20 +458,30 @@ export default function StoreRegisterForm({ mode, storeId }: StoreRegisterFormPr
             color="success"
             disabled={isLoading}
           >
-            {isLoading ? '저장 중...' : buttonText} {/* [수정] 동적 버튼 텍스트 */}
+            {isLoading ? '저장 중...' : buttonText}
           </Button>
         </Box>
       </Box>
 
-      {/* [12. 수정] 상품 추가 모달에 storeId 전달 */}
+      {/* [12. 수정] RewardRegisterModal 연동 */}
       <RewardRegisterModal
-        open={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        mode="register"
+        open={rewardModalOpen}
+        onClose={handleCloseRewardModal}
+        mode={rewardModalMode}
+        rewardId={selectedRewardId}
         storeId={storeId}
       />
 
-      {/* 지도 팝업 */}
+      {/* [13. 추가] 상품 삭제 확인 다이얼로그 */}
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        onConfirm={handleConfirmDeleteReward}
+        title="상품 삭제"
+        message={`정말로 이 상품을 삭제하시겠습니까?`}
+        isPending={deleteRewardMutation.isPending}
+      />
+
       <MapDialog
         open={isMapOpen}
         onClose={() => setIsMapOpen(false)}

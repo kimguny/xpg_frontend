@@ -214,8 +214,6 @@ export default function RewardManagementContent() {
             }}
           />
         </Box>
-        {/*  등록 버튼: ID 없이 호출 */}
-        <Button variant="contained" startIcon={<Add />} onClick={() => openEditModal(null)}>상품 등록</Button>
       </Box>
 
       {/* 리워드 테이블 */}
