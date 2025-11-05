@@ -544,6 +544,7 @@ export interface StoreReward {
   is_active: boolean;
   exposure_order: number | null;
   qr_image_url: string | null;
+  category: string | null;
 }
 
 // (2) 매장 상품(리워드) 생성 요청 타입
@@ -555,6 +556,7 @@ export interface StoreRewardCreatePayload {
   stock_qty?: number | null;
   is_active?: boolean;
   exposure_order?: number | null;
+  category?: string | null;
 }
 
 // (3) 매장 응답 타입 (상품 목록 포함)

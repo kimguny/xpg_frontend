@@ -116,7 +116,7 @@ export default function RewardRegisterModal({ open, onClose, mode, storeId, rewa
             is_unlimited: initialData.stock_qty === null,
             is_active: initialData.is_active,
             exposure_order: String(initialData.exposure_order || 0), 
-            category: '기타',
+            category: initialData.category || '기타',
         });
         
         // DB에 저장된 qr_image_url이 있는지 확인
@@ -145,7 +145,7 @@ export default function RewardRegisterModal({ open, onClose, mode, storeId, rewa
       stock_qty: data.is_unlimited ? null : (data.stock_qty ? Number(data.stock_qty) : 0), 
       is_active: data.is_active,
       exposure_order: Number(data.exposure_order) || 0,
-      // TODO: 'category' 필드도 payload에 추가 필요
+      category: data.category,
     };
     
     if (isEditMode && rewardId) {
