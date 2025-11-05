@@ -203,6 +203,7 @@ export default function StoreRegisterForm({ mode, storeId }: StoreRegisterFormPr
     return (existingData?.rewards || []) as StoreReward[];
   }, [existingData]);
 
+  const storeName = existingData?.store_name || 'N/A';
 
   if (isEditMode && isLoadingData) {
     return (
@@ -386,7 +387,8 @@ export default function StoreRegisterForm({ mode, storeId }: StoreRegisterFormPr
                   <TableHead>
                     <TableRow sx={{ bgcolor: 'grey.50' }}>
                       <TableCell>이미지</TableCell>
-                      <TableCell>리워드명</TableCell>
+                      <TableCell>상품명</TableCell>
+                      <TableCell>매장명</TableCell>
                       <TableCell>필요 포인트</TableCell>
                       <TableCell>재고</TableCell>
                       <TableCell>상태</TableCell>
@@ -414,6 +416,7 @@ export default function StoreRegisterForm({ mode, storeId }: StoreRegisterFormPr
                             />
                           </TableCell>
                           <TableCell>{reward.product_name}</TableCell>
+                          <TableCell>{storeName}</TableCell>
                           <TableCell>{reward.price_coin.toLocaleString()} P</TableCell>
                           <TableCell>
                             {reward.stock_qty === null ? '무제한' : reward.stock_qty}
