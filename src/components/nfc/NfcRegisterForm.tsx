@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react'; // [1. 수정] useEffect 추가
+import React, { useState, useEffect, useRef, ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, Controller, SubmitHandler } from 'react-hook-form';
 import {
@@ -16,17 +16,17 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  CircularProgress, // [2. 추가] 로딩 스피너
+  CircularProgress,
+  Avatar,
 } from '@mui/material';
 
-// [3. 수정] 필요한 훅과 타입을 모두 import
 import { useCreateNfcTag } from '@/hooks/mutation/useCreateNfcTag';
 import { useUpdateNfcTag } from '@/hooks/mutation/useUpdateNfcTag';
 import { useGetNfcTagById } from '@/hooks/query/useGetNfcTagById';
 import { NFCTagCreatePayload, NFCTagUpdatePayload } from '@/lib/api/admin';
 import MapDialog from '@/components/common/MapDialog';
+import { useUploadImage } from '@/hooks/mutation/useUploadImage';
 
-// (폼 데이터 타입은 동일)
 type NfcFormData = {
   udid: string;
   tag_name: string;
@@ -46,23 +46,25 @@ type NfcFormData = {
   category: string;
 };
 
-// [4. 수정] nfcId prop 추가
+const API_BASE_URL = 'http://121.126.223.205:8000';
+
 interface NfcRegisterFormProps {
   mode: 'register' | 'edit';
-  nfcId?: string; // 'edit' 모드일 때 ID를 받음
+  nfcId?: string; 
 }
 
 export default function NfcRegisterForm({ mode, nfcId }: NfcRegisterFormProps) {
   const router = useRouter();
   const isEditMode = mode === 'edit';
   const [isMapOpen, setIsMapOpen] = useState(false);
+  
+  const mediaFileInputRef = useRef<HTMLInputElement>(null);
+  const uploadImageMutation = useUploadImage();
 
-  // [5. 추가] 데이터 페칭 및 뮤테이션 훅
   const { data: existingData, isLoading: isLoadingData } = useGetNfcTagById(nfcId);
   const createNfcTagMutation = useCreateNfcTag();
-  const updateNfcTagMutation = useUpdateNfcTag(nfcId!); // '!'는 isEditMode일 때만 호출되므로 안전
+  const updateNfcTagMutation = useUpdateNfcTag(nfcId!); 
 
-  // [6. 수정] react-hook-form의 'reset' 함수 추가
   const { control, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm<NfcFormData>({
     defaultValues: {
       udid: '',
@@ -84,10 +86,8 @@ export default function NfcRegisterForm({ mode, nfcId }: NfcRegisterFormProps) {
     },
   });
 
-  // [7. 추가] 수정 모드일 때, 데이터를 불러오면 폼에 채워넣는 useEffect
   useEffect(() => {
     if (isEditMode && existingData) {
-      // API 데이터(NfcTag)를 폼 데이터(NfcFormData) 형식으로 변환
       const formData: NfcFormData = {
         udid: existingData.udid,
         tag_name: existingData.tag_name,
@@ -96,7 +96,6 @@ export default function NfcRegisterForm({ mode, nfcId }: NfcRegisterFormProps) {
         latitude: existingData.latitude?.toString() || '',
         longitude: existingData.longitude?.toString() || '',
         floor_location: existingData.floor_location || '',
-        // 'tap_message'가 있으면 'message' 타입, 아니면 'url' 타입
         actionType: existingData.tap_message ? 'message' : 'url',
         link_url: existingData.link_url || '',
         media_url: existingData.media_url || '',
@@ -107,19 +106,18 @@ export default function NfcRegisterForm({ mode, nfcId }: NfcRegisterFormProps) {
         is_active: existingData.is_active ? 'Y' : 'N',
         category: existingData.category || 'none',
       };
-      reset(formData); // react-hook-form의 reset으로 폼 값 전체 갱신
+      reset(formData);
     }
   }, [isEditMode, existingData, reset]);
 
   const actionType = watch('actionType');
+  const mediaUrl = watch('media_url'); 
   const title = isEditMode ? 'NFC 태그 수정' : 'NFC 태그 등록';
   const buttonText = isEditMode ? 'NFC 수정' : 'NFC 저장';
   
-  // [8. 수정] onSubmit 로직 (생성/수정 분기 처리)
   const onSubmit: SubmitHandler<NfcFormData> = (data) => {
     
     if (isEditMode) {
-      // 1. 수정 모드일 때 (tag_name은 optional)
       const updatePayload: NFCTagUpdatePayload = {
         tag_name: data.tag_name || undefined,
         description: data.description || null,
@@ -139,8 +137,6 @@ export default function NfcRegisterForm({ mode, nfcId }: NfcRegisterFormProps) {
       updateNfcTagMutation.mutate(updatePayload);
 
     } else {
-      // 2. 생성 모드일 때 (udid, tag_name은 required string)
-      // (react-hook-form의 'rules'가 이 값들을 보장해야 함)
       const createPayload: NFCTagCreatePayload = {
         udid: data.udid,
         tag_name: data.tag_name,
@@ -167,7 +163,35 @@ export default function NfcRegisterForm({ mode, nfcId }: NfcRegisterFormProps) {
     setValue('longitude', location.lng.toString());
   };
 
-  // [9. 추가] 수정 모드에서 데이터 로딩 중일 때 스피너 표시
+  const handleSelectFileClick = () => {
+      mediaFileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      uploadImageMutation.mutate(formData, {
+          onSuccess: (data) => {
+              setValue('media_url', data.file_path, { shouldValidate: true }); 
+              alert('이미지가 업로드되어 URL에 반영되었습니다.');
+          },
+          onError: (err) => {
+              alert(`이미지 업로드 실패: ${err.message}`);
+          }
+      });
+      
+      e.target.value = '';
+  };
+  
+  const getFullImageUrl = (url: string) => {
+    if (!url) return '';
+    return url.startsWith('/') ? `${API_BASE_URL}${url}` : url;
+  };
+
   if (isEditMode && isLoadingData) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
@@ -176,8 +200,7 @@ export default function NfcRegisterForm({ mode, nfcId }: NfcRegisterFormProps) {
     );
   }
 
-  // [10. 수정] 로딩 상태 변수명 변경
-  const isSubmitting = createNfcTagMutation.isPending || updateNfcTagMutation.isPending;
+  const isSubmitting = createNfcTagMutation.isPending || updateNfcTagMutation.isPending || uploadImageMutation.isPending;
 
   return (
     <Box>
@@ -203,7 +226,6 @@ export default function NfcRegisterForm({ mode, nfcId }: NfcRegisterFormProps) {
                     label="UDID"
                     placeholder="NFC 태그를 스캔하여 UDID 입력"
                     fullWidth
-                    // [11. 수정] 수정 모드일 때 UDID는 읽기 전용(readOnly)
                     InputProps={{ readOnly: isEditMode }}
                     error={!!fieldState.error}
                     helperText={fieldState.error?.message}
@@ -297,11 +319,39 @@ export default function NfcRegisterForm({ mode, nfcId }: NfcRegisterFormProps) {
                     name="media_url"
                     control={control}
                     render={({ field }) => (
-                      <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
-                        <TextField {...field} value={field.value || ''} label="미디어 파일 등록 (URL)" fullWidth />
-                        <Button variant="outlined" sx={{ whiteSpace: 'nowrap', py: '15.5px' }} disabled>
-                          파일 선택
-                        </Button>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                          <TextField 
+                            {...field} 
+                            value={field.value || ''} 
+                            label="미디어 파일 등록 (URL)" 
+                            fullWidth 
+                            disabled={uploadImageMutation.isPending}
+                          />
+                          <Button 
+                            variant="outlined" 
+                            sx={{ whiteSpace: 'nowrap', py: '15.5px' }} 
+                            onClick={handleSelectFileClick}
+                            disabled={uploadImageMutation.isPending}
+                          >
+                            {uploadImageMutation.isPending ? '업로드 중...' : '파일 선택'}
+                          </Button>
+                        </Box>
+                        <input 
+                            type="file" 
+                            ref={mediaFileInputRef} 
+                            onChange={handleFileChange}
+                            accept="image/jpeg,image/png,image/gif"
+                            style={{ display: 'none' }} 
+                        />
+                        {mediaUrl && (
+                          <Avatar
+                            src={getFullImageUrl(mediaUrl)}
+                            alt="미디어 미리보기" 
+                            variant="rounded"
+                            sx={{ width: 100, height: 100, mt: 1, border: '1px solid', borderColor: 'grey.300' }}
+                          />
+                        )}
                       </Box>
                     )}
                   />
@@ -377,7 +427,6 @@ export default function NfcRegisterForm({ mode, nfcId }: NfcRegisterFormProps) {
             </Box>
           </Box>
           
-          {/* Submit Button */}
           <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mt: 4 }}>
             <Button 
               variant="outlined" 
@@ -390,7 +439,6 @@ export default function NfcRegisterForm({ mode, nfcId }: NfcRegisterFormProps) {
               type="submit" 
               variant="contained" 
               size="large" 
-              // [12. 수정] 로딩 상태 변수명 변경
               disabled={isSubmitting}
             >
               {isSubmitting ? '저장 중...' : buttonText}
