@@ -21,12 +21,10 @@ import {
 import { GetRewardLedgerParams, RewardLedgerItem } from '@/lib/api/admin';
 import { useGetRewardLedger } from '@/hooks/query/useGetRewardLedger';
 
-// 정렬 방향
 type Order = 'asc' | 'desc';
 
-// 테이블 헤더 컬럼 정의
 interface HeadCell {
-  id: keyof RewardLedgerItem | 'user.nickname' | 'details'; // 정렬에 사용할 키
+  id: keyof RewardLedgerItem | 'user.nickname' | 'user.login_id' | 'details'; 
   label: string;
   numeric: boolean;
   sortable: boolean;
@@ -34,13 +32,13 @@ interface HeadCell {
 
 const headCells: readonly HeadCell[] = [
   { id: 'created_at', label: '날짜', numeric: false, sortable: true },
-  { id: 'user.nickname', label: '유저 (ID)', numeric: false, sortable: true }, // 'user.nickname' 정렬은 백엔드 지원 필요
+  { id: 'user.login_id', label: '유저 ID', numeric: false, sortable: true }, 
+  { id: 'user.nickname', label: '닉네임', numeric: false, sortable: true },
   { id: 'details', label: '내용', numeric: false, sortable: false },
   { id: 'coin_delta', label: '포인트 변동', numeric: true, sortable: true },
   { id: 'note', label: '메모', numeric: false, sortable: true },
 ];
 
-// 테이블 헤더 컴포넌트
 interface PaymentHistoryTableHeadProps {
   order: Order;
   orderBy: string;
@@ -82,7 +80,6 @@ function PaymentHistoryTableHead(props: PaymentHistoryTableHeadProps) {
   );
 }
 
-// 결제 내역 상세 내용을 포맷팅하는 헬퍼 함수
 function formatDetails(item: RewardLedgerItem): string {
   if (item.reward) {
     return `[상품] ${item.reward.product_name}`;
@@ -96,30 +93,24 @@ function formatDetails(item: RewardLedgerItem): string {
   return '시스템 활동';
 }
 
-// 메인 컴포넌트
 export default function PaymentHistoryContent() {
-  // 정렬 상태
   const [order, setOrder] = useState<Order>('desc');
   const [orderBy, setOrderBy] = useState<string>('created_at');
-  // 페이지네이션 상태
   const [page, setPage] = useState(1);
-  const [size] = useState(10); // 페이지당 10개
+  const [size] = useState(10); 
 
-  // 쿼리 파라미터 조합
   const queryParams: GetRewardLedgerParams = {
     page,
     size,
     sort: `${orderBy},${order.toUpperCase()}`,
   };
 
-  // 훅: 데이터 조회
   const { data, isLoading, isError } = useGetRewardLedger(queryParams);
 
   const items = data?.items || [];
   const totalItems = data?.total || 0;
   const totalPages = Math.ceil(totalItems / size);
 
-  // 정렬 요청 핸들러
   const handleRequestSort = (
     event: React.MouseEvent<unknown>,
     property: string
@@ -127,10 +118,9 @@ export default function PaymentHistoryContent() {
     const isAsc = orderBy === property && order === 'asc';
     setOrder(isAsc ? 'desc' : 'asc');
     setOrderBy(property);
-    setPage(1); // 정렬 시 1페이지로 리셋
+    setPage(1); 
   };
 
-  // 페이지 변경 핸들러
   const handlePageChange = (
     event: React.ChangeEvent<unknown>,
     value: number
@@ -144,8 +134,6 @@ export default function PaymentHistoryContent() {
         결제 내역 (포인트 변동)
       </Typography>
 
-      {/* TODO: 검색(q) 또는 유저 필터(user_id) UI 추가 공간 */}
-
       <Card>
         <TableContainer component={Paper} sx={{ boxShadow: 0 }}>
           <Table>
@@ -157,19 +145,19 @@ export default function PaymentHistoryContent() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={5} align="center">
+                  <TableCell colSpan={6} align="center">
                     <CircularProgress />
                   </TableCell>
                 </TableRow>
               ) : isError ? (
                 <TableRow>
-                  <TableCell colSpan={5} align="center">
+                  <TableCell colSpan={6} align="center">
                     데이터를 불러오는 중 오류가 발생했습니다.
                   </TableCell>
                 </TableRow>
               ) : items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} align="center">
+                  <TableCell colSpan={6} align="center">
                     결제 내역이 없습니다.
                   </TableCell>
                 </TableRow>
@@ -183,8 +171,11 @@ export default function PaymentHistoryContent() {
                       {new Date(item.created_at).toLocaleString('ko-KR')}
                     </TableCell>
                     <TableCell>
+                      {item.user ? item.user.login_id : '(알 수 없음)'}
+                    </TableCell>
+                    <TableCell>
                       {item.user ? (
-                        <Tooltip title={`ID: ${item.user.login_id}`}>
+                        <Tooltip title={`UUID: ${item.user.id}`}>
                           <span>{item.user.nickname || '(닉네임 없음)'}</span>
                         </Tooltip>
                       ) : (
@@ -219,7 +210,6 @@ export default function PaymentHistoryContent() {
           </Table>
         </TableContainer>
 
-        {/* 페이지네이션 */}
         {totalPages > 0 && (
           <Box
             sx={{
