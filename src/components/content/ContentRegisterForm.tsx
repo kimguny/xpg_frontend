@@ -1,7 +1,6 @@
 'use client';
-import { useEffect } from 'react'; 
+import { useEffect, useState, useRef, ChangeEvent } from 'react';
 import { CircularProgress } from '@mui/material';
-import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Box,
@@ -18,16 +17,16 @@ import {
   Select,
   MenuItem,
   FormLabel,
+  Avatar,
 } from '@mui/material';
 import { useCreateContent } from '@/hooks/mutation/useCreateContent';
-import { ContentCreatePayload } from '@/lib/api/admin';
+import { ContentCreatePayload, ContentUpdatePayload } from '@/lib/api/admin';
 import MapDialog from '@/components/common/MapDialog';
 
 import { useUpdateContent } from '@/hooks/mutation/useUpdateContent';
 import { useGetContentById } from '@/hooks/query/useGetContentById';
-import { ContentUpdatePayload } from '@/lib/api/admin';
-
 import { useContentStore } from '@/store/contentStore';
+import { useUploadImage } from '@/hooks/mutation/useUploadImage';
 
 type ContentType = 'story' | 'domination';
 type ProgressMode = 'sequential' | 'non-sequential';
@@ -35,6 +34,8 @@ type ProgressMode = 'sequential' | 'non-sequential';
 interface ContentRegisterFormProps {
   contentId?: string;
 }
+
+const API_BASE_URL = 'http://121.126.223.205:8000';
 
 export default function ContentRegisterForm({ contentId }: ContentRegisterFormProps) {
   const router = useRouter();
@@ -47,14 +48,19 @@ export default function ContentRegisterForm({ contentId }: ContentRegisterFormPr
   const [contentType, setContentType] = useState<ContentType>('story');
   const { contentToClone, setContentToClone } = useContentStore();
   
+  const thumbnailInputRef = useRef<HTMLInputElement>(null);
+  const backgroundInputRef = useRef<HTMLInputElement>(null);
+  const uploadImageMutation = useUploadImage();
+  
   const [formData, setFormData] = useState({
     title: '',
     description: '',
+    thumbnail_url: '',
+    background_image_url: '',
     exposureSlot: 'story',
     address: '',
     latitude: '',
     longitude: '',
-    backgroundImage: null as File | null,
     stageCount: 1,
     progressMode: 'sequential' as ProgressMode,
     startDate: '',
@@ -73,17 +79,18 @@ export default function ContentRegisterForm({ contentId }: ContentRegisterFormPr
       setFormData({
         title: existingContent.title,
         description: existingContent.description || '',
+        thumbnail_url: existingContent.thumbnail_url || '',
+        background_image_url: existingContent.background_image_url || '',
         exposureSlot: existingContent.exposure_slot,
-        address: '', // API에 주소 필드가 없으므로 비워둡니다.
+        address: '', 
         latitude: existingContent.center_point?.lat.toString() || '',
         longitude: existingContent.center_point?.lon.toString() || '',
-        backgroundImage: null, // 이미지는 새로 업로드해야 하므로 초기화합니다.
         stageCount: existingContent.stage_count || 1,
         progressMode: existingContent.is_sequential ? 'sequential' : 'non-sequential',
         startDate: existingContent.start_at ? existingContent.start_at.split('T')[0] : '',
         endDate: existingContent.end_at ? existingContent.end_at.split('T')[0] : '',
         isAlwaysOn: existingContent.is_always_on,
-        maxParticipants: '', // 이 필드들은 API에 없으므로 비워둡니다.
+        maxParticipants: '',
         isUnlimited: false,
         completionReward: existingContent.reward_coin.toString(),
         nextContent: false,
@@ -99,6 +106,8 @@ export default function ContentRegisterForm({ contentId }: ContentRegisterFormPr
         ...formData,
         title: `${contentToClone.title} [복사본]`,
         description: contentToClone.description || '',
+        thumbnail_url: contentToClone.thumbnail_url || '',
+        background_image_url: contentToClone.background_image_url || '',
         exposureSlot: contentToClone.exposure_slot,
         latitude: contentToClone.center_point?.lat.toString() || '',
         longitude: contentToClone.center_point?.lon.toString() || '',
@@ -112,7 +121,7 @@ export default function ContentRegisterForm({ contentId }: ContentRegisterFormPr
 
       setContentToClone(null);
     }
-  }, [contentToClone, isEditMode, setContentToClone]);
+  }, [contentToClone, isEditMode, setContentToClone, formData]);
 
   const handleLocationSelect = (location: { lat: number; lng: number }) => {
     setFormData({
@@ -122,10 +131,27 @@ export default function ContentRegisterForm({ contentId }: ContentRegisterFormPr
     });
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFormData({ ...formData, backgroundImage: e.target.files[0] });
-    }
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>, field: 'thumbnail_url' | 'background_image_url') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const uploadFormData = new FormData();
+    uploadFormData.append('file', file);
+
+    uploadImageMutation.mutate(uploadFormData, {
+        onSuccess: (data) => {
+            setFormData(prev => ({
+                ...prev,
+                [field]: data.file_path 
+            }));
+            alert('이미지가 업로드되어 URL에 반영되었습니다.');
+        },
+        onError: (err) => {
+            alert(`이미지 업로드 실패: ${err.message}`);
+        }
+    });
+    
+    e.target.value = '';
   };
 
   const handlePreview = () => {
@@ -137,6 +163,8 @@ export default function ContentRegisterForm({ contentId }: ContentRegisterFormPr
     const payload: ContentCreatePayload | ContentUpdatePayload = {
       title: formData.title,
       description: formData.description,
+      thumbnail_url: formData.thumbnail_url || null,
+      background_image_url: formData.background_image_url || null,
       content_type: contentType,
       exposure_slot: formData.exposureSlot as 'story' | 'event',
       is_always_on: formData.isAlwaysOn,
@@ -152,13 +180,13 @@ export default function ContentRegisterForm({ contentId }: ContentRegisterFormPr
     };
 
     if (isEditMode) {
-      updateMutation.mutate(payload);
+      updateMutation.mutate(payload as ContentUpdatePayload);
     } else {
       createMutation.mutate(payload as ContentCreatePayload);
     }
   };
 
-  const isLoading = createContentMutation.isPending || updateMutation.isPending;
+  const isLoading = createContentMutation.isPending || updateMutation.isPending || uploadImageMutation.isPending;
 
   if (isEditMode && isLoadingContent) {
     return (
@@ -167,6 +195,11 @@ export default function ContentRegisterForm({ contentId }: ContentRegisterFormPr
       </Box>
     );
   }
+  
+  const getFullImageUrl = (url: string) => {
+    if (!url) return '';
+    return url.startsWith('/') ? `${API_BASE_URL}${url}` : url;
+  };
 
   return (
     <Box>
@@ -195,9 +228,6 @@ export default function ContentRegisterForm({ contentId }: ContentRegisterFormPr
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                 />
-                <Button variant="outlined" sx={{ minWidth: 100 }}>
-                  주소 찾기
-                </Button>
               </Box>
               <Box sx={{ display: 'flex', gap: 2 }}>
                 <TextField
@@ -217,8 +247,90 @@ export default function ContentRegisterForm({ contentId }: ContentRegisterFormPr
                 </Button>
               </Box>
             </Box>
-            
-            <Box sx={{ mb: 3 }}><Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>배경 이미지 등록</Typography><input type="file" accept="image/*" onChange={handleImageUpload} style={{ display: 'block', marginBottom: '8px' }} /><Typography variant="caption" color="text.secondary">※ 전체 배경 이미지 사이즈는 1080x1920 사이즈 입니다.</Typography></Box>
+
+            <Box sx={{ border: '1px solid #ccc', p: 2, borderRadius: 1, mb: 3 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                썸네일 이미지 등록 (정사각형 추천)
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                <Button 
+                  variant="contained" 
+                  size="small" 
+                  onClick={() => thumbnailInputRef.current?.click()}
+                  disabled={uploadImageMutation.isPending}
+                  sx={{ minWidth: 80, py: '8.5px' }}
+                >
+                  {uploadImageMutation.isPending ? '업로드 중...' : '파일 선택'}
+                </Button>
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  ref={thumbnailInputRef}
+                  onChange={(e) => handleFileChange(e, 'thumbnail_url')} 
+                  style={{ display: 'none' }} 
+                />
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="썸네일 URL"
+                  value={formData.thumbnail_url}
+                  onChange={(e) => setFormData({ ...formData, thumbnail_url: e.target.value })}
+                  placeholder="파일을 업로드하거나 URL을 직접 입력하세요."
+                  disabled={uploadImageMutation.isPending}
+                />
+              </Box>
+              {formData.thumbnail_url && (
+                <Avatar
+                  src={getFullImageUrl(formData.thumbnail_url)}
+                  alt="썸네일 미리보기" 
+                  variant="rounded"
+                  sx={{ width: 150, height: 150, mt: 2, border: '1px solid', borderColor: 'grey.300' }}
+                />
+              )}
+            </Box>
+
+            <Box sx={{ border: '1px solid #ccc', p: 2, borderRadius: 1, mb: 3 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                배경 이미지 등록 (세로형 직사각형 추천)
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                <Button 
+                  variant="contained" 
+                  size="small" 
+                  onClick={() => backgroundInputRef.current?.click()}
+                  disabled={uploadImageMutation.isPending}
+                  sx={{ minWidth: 80, py: '8.5px' }}
+                >
+                  {uploadImageMutation.isPending ? '업로드 중...' : '파일 선택'}
+                </Button>
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  ref={backgroundInputRef}
+                  onChange={(e) => handleFileChange(e, 'background_image_url')} 
+                  style={{ display: 'none' }} 
+                />
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="배경 URL"
+                  value={formData.background_image_url}
+                  onChange={(e) => setFormData({ ...formData, background_image_url: e.target.value })}
+                  placeholder="파일을 업로드하거나 URL을 직접 입력하세요."
+                  disabled={uploadImageMutation.isPending}
+                />
+              </Box>
+              {formData.background_image_url && (
+                <Avatar
+                  src={getFullImageUrl(formData.background_image_url)}
+                  alt="배경 미리보기" 
+                  variant="rounded"
+                  sx={{ width: 150, height: 266, mt: 2, border: '1px solid', borderColor: 'grey.300' }}
+                />
+              )}
+              <Typography variant="caption" color="text.secondary">※ 전체 배경 이미지 사이즈는 1080x1920 사이즈 입니다.</Typography>
+            </Box>
+
             <Box sx={{ mb: 3 }}><Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>서브 스테이지 수 설정</Typography><TextField type="number" inputProps={{ min: 1, max: 10 }} value={formData.stageCount} onChange={(e) => setFormData({ ...formData, stageCount: parseInt(e.target.value) })} sx={{ width: 120 }} /><Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>※ 최소1~10 까지 설정 가능합니다.</Typography></Box>
             <Box sx={{ mb: 3 }}><Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>서브 콘텐츠 진행 방식</Typography><FormControl component="fieldset"><RadioGroup row value={formData.progressMode} onChange={(e) => setFormData({ ...formData, progressMode: e.target.value as ProgressMode })}><FormControlLabel value="sequential" control={<Radio />} label="순차" /><FormControlLabel value="non-sequential" control={<Radio />} label="비 순차" /></RadioGroup></FormControl></Box>
             <Box sx={{ mb: 3 }}><Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>이벤트 기간 설정</Typography><Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}><TextField type="date" value={formData.startDate} onChange={(e) => setFormData({ ...formData, startDate: e.target.value })} disabled={formData.isAlwaysOn} InputLabelProps={{ shrink: true }}/><Typography>~</Typography><TextField type="date" value={formData.endDate} onChange={(e) => setFormData({ ...formData, endDate: e.target.value })} disabled={formData.isAlwaysOn} InputLabelProps={{ shrink: true }}/><FormControlLabel control={<Checkbox checked={formData.isAlwaysOn} onChange={(e) => setFormData({ ...formData, isAlwaysOn: e.target.checked })}/>} label="상시"/></Box><Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>※ 상시 진행 이벤트인 경우 체크</Typography></Box>
@@ -227,8 +339,8 @@ export default function ContentRegisterForm({ contentId }: ContentRegisterFormPr
             {contentType === 'story' && (<Box sx={{ mb: 3 }}><Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>다음 콘텐츠 설정</Typography><Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}><FormControl component="fieldset"><RadioGroup row value={formData.nextContent ? 'Y' : 'N'} onChange={(e) => setFormData({ ...formData, nextContent: e.target.value === 'Y' })}><FormControlLabel value="Y" control={<Radio />} label="Y" /><FormControlLabel value="N" control={<Radio />} label="N" /></RadioGroup></FormControl>{formData.nextContent && (<><Typography>선행 조건:</Typography><Select value={formData.prerequisiteContent} onChange={(e) => setFormData({ ...formData, prerequisiteContent: e.target.value })} sx={{ minWidth: 300 }}><MenuItem value="">선택하세요</MenuItem><MenuItem value="content1">목포의 사라진 눈물 – 원도심</MenuItem></Select></>)}</Box></Box>)}
 
             <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', pt: 3 }}>
-              <Button variant="contained" color="success" onClick={handlePreview}>미리보기</Button>
-              <Button type="submit" variant="contained" color="warning" disabled={isLoading}>
+              {/* <Button variant="contained" color="success" onClick={handlePreview}>미리보기</Button> */}
+              <Button type="submit" variant="contained" disabled={isLoading}>
                 {isLoading ? (isEditMode ? '수정 중...' : '저장 중...') : (isEditMode ? '수정하기' : '저장하기')}
               </Button>
             </Box>

@@ -33,6 +33,8 @@ export interface Content {
   id: string;
   title: string;
   description: string | null;
+  thumbnail_url: string | null;
+  background_image_url: string | null;
   content_type: string;
   exposure_slot: string;
   is_always_on: boolean;
@@ -121,6 +123,8 @@ export const toggleContentStatus = async (contentId: string): Promise<void> => {
 export interface ContentCreatePayload {
   title: string;
   description?: string | null;
+  thumbnail_url?: string | null;
+  background_image_url?: string | null;
   content_type: 'story' | 'domination';
   exposure_slot: 'story' | 'event';
   is_always_on: boolean;
@@ -142,6 +146,8 @@ export const createAdminContent = async (payload: ContentCreatePayload): Promise
 export interface ContentUpdatePayload {
   title?: string;
   description?: string | null;
+  thumbnail_url?: string | null;
+  background_image_url?: string | null;
   content_type?: 'story' | 'domination';
   exposure_slot?: 'story' | 'event';
   is_always_on?: boolean;
