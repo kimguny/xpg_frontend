@@ -72,6 +72,7 @@ const getStatusChip = (remainingQty: number) => {
   }
   return <Chip label="정상" color="success" size="small" />;
 };
+const API_BASE_URL = 'http://121.126.223.205:8000';
 // ----------------------------------------------------------------------
 //  메인 컴포넌트 (API 연동)
 // ----------------------------------------------------------------------
@@ -109,7 +110,11 @@ export default function RewardManagementContent() {
     return apiRewards.map(reward => ({
       // 기존 UI 필드명 (id: number, imageUrl, productName, points, totalQty, remainingQty)에 맞춤
       id: reward.id, // string(UUID) 사용
-      imageUrl: reward.image_url || 'https://via.placeholder.com/40',
+      imageUrl: reward.image_url 
+                ? (reward.image_url.startsWith('/') 
+                    ? `${API_BASE_URL}${reward.image_url}` 
+                    : reward.image_url) 
+                : 'https://via.placeholder.com/40',
       productName: reward.product_name,
       category: 'N/A', // DB/API에 카테고리 필드가 없으므로 N/A 처리
       points: reward.price_coin,

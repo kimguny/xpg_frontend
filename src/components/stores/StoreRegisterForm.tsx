@@ -36,6 +36,8 @@ import { useGetStoreById } from '@/hooks/query/useGetStoreById';
 import { StoreCreatePayload, StoreUpdatePayload, Store, StoreReward } from '@/lib/api/admin';
 import { useDeleteStoreReward } from '@/hooks/mutation/useDeleteStoreReward'; // [4. 상품 삭제 훅 추가]
 
+const API_BASE_URL = 'http://121.126.223.205:8000';
+
 // 폼 데이터 타입 (기존과 동일)
 type StoreFormData = {
   store_name: string;
@@ -403,7 +405,14 @@ export default function StoreRegisterForm({ mode, storeId }: StoreRegisterFormPr
                       storeRewards.map((reward) => (
                         <TableRow key={reward.id} sx={{ '&:hover': { bgcolor: 'grey.50' } }}>
                           <TableCell>
-                            <Avatar src={reward.image_url || ''} variant="rounded" />
+                            <Avatar 
+                              src={reward.image_url 
+                                    ? (reward.image_url.startsWith('/') 
+                                        ? `${API_BASE_URL}${reward.image_url}` 
+                                        : reward.image_url) 
+                                    : ''} 
+                              variant="rounded" 
+                            />
                           </TableCell>
                           <TableCell>{reward.product_name}</TableCell>
                           <TableCell>{reward.price_coin.toLocaleString()} P</TableCell>
