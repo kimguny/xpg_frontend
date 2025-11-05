@@ -15,6 +15,7 @@ import {
   Checkbox,
   CircularProgress,
   FormControl, Select, MenuItem, InputLabel,
+  Avatar,
 } from '@mui/material';
 
 // 훅 및 타입 임포트
@@ -88,6 +89,7 @@ export default function RewardRegisterModal({ open, onClose, mode, storeId, rewa
   });
 
   const isUnlimited = watch('is_unlimited');
+  const currentImageUrl = watch('image_url');
 
   // 재고 무제한 체크 시 수량 필드 처리 로직
   useEffect(() => {
@@ -279,20 +281,20 @@ export default function RewardRegisterModal({ open, onClose, mode, storeId, rewa
             <Box sx={{ border: '1px solid #ccc', p: 2, borderRadius: 1 }}>
                 <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>제품 이미지 등록</Typography>
                 <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                     {/* [10. 수정] 파일 선택 버튼에 핸들러 연결 */}
-                     <Button 
+                    {/* [10. 수정] 파일 선택 버튼에 핸들러 연결 */}
+                    <Button 
                         variant="contained" 
                         disableElevation 
                         size="small"
                         onClick={handleSelectFileClick}
                         // disabled={uploadImageMutation.isPending} // API 연동 시
-                     >
+                    >
                         파일 선택
-                     </Button>
-                     <Typography variant="caption" color="text.secondary">
+                    </Button>
+                    <Typography variant="caption" color="text.secondary">
                         {/* [11. 추가] 선택된 파일명 표시 */}
                         {selectedFileName ? selectedFileName : "* 이미지 사이즈는 800x800 이하 권장."}
-                     </Typography>
+                    </Typography>
                 </Box>
                 {/* [12. 추가] 숨겨진 파일 input */}
                 <input 
@@ -318,6 +320,30 @@ export default function RewardRegisterModal({ open, onClose, mode, storeId, rewa
                       />
                     )}
                   />
+                {currentImageUrl && (
+                  <Box sx={{ mt: 2, textAlign: 'center' }}>
+                    <Typography variant="caption" color="text.secondary" gutterBottom>
+                      이미지 미리보기
+                    </Typography>
+                    <Avatar
+                      src={currentImageUrl.startsWith('/') ? `${API_BASE_URL}${currentImageUrl}` : currentImageUrl}
+                      alt="미리보기"
+                      variant="rounded"
+                      sx={{ 
+                        width: 120, 
+                        height: 120, 
+                        m: 'auto', 
+                        mt: 0.5, 
+                        border: '1px solid',
+                        borderColor: 'grey.300'
+                      }}
+                      onError={(e) => { 
+                        const target = e.target as HTMLImageElement;
+                        target.src = 'https://placehold.co/120x120/eee/aaa?text=Error'; 
+                      }}
+                    />
+                  </Box>
+                )}
             </Box>
 
             <Box sx={{ display: 'flex', gap: 2 }}>
