@@ -324,7 +324,7 @@ export default function NfcRegisterForm({ mode, nfcId }: NfcRegisterFormProps) {
                           <TextField 
                             {...field} 
                             value={field.value || ''} 
-                            label="미디어 파일 등록 (URL)" 
+                            label="미디어 URL" 
                             fullWidth 
                             disabled={uploadImageMutation.isPending}
                           />
