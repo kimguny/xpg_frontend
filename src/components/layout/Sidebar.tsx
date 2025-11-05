@@ -73,24 +73,17 @@ export default function Sidebar() {
       ]
     },
     {
-      name: '회원관리',
+      name: '회원 관리',
       path: '/save/users',
       icon: <People />
     },
     {
       name: '리워드',
       path: '/save/rewards',
-      icon: <CardGiftcard />,
-      subItems: [
-        { name: '리워드 관리', path: '/save/rewards' },
-        { name: '결제 내역', path: '/save/payments' },
-      ]
-    },
-    {
-      name: '매장관리',
-      path: '/save/stores',
       icon: <Storefront />,
       subItems: [
+        { name: '상품 관리', path: '/save/rewards' },
+        { name: '결제 내역', path: '/save/payments' },
         { name: '매장 등록', path: '/save/stores/register' },
         { name: '매장 관리', path: '/save/stores/manage' },
       ]
@@ -101,7 +94,7 @@ export default function Sidebar() {
     '콘텐츠': pathname.startsWith('/save/content'),
     '이벤트': pathname.startsWith('/save/events'),
     'NFC': pathname.startsWith('/save/nfc'),
-    '매장관리': pathname.startsWith('/save/stores'),
+    '리워드': pathname.startsWith('/save/rewards') || pathname.startsWith('/save/stores') || pathname.startsWith('/save/payments'),
   });
 
   const handleMenuClick = (item: MenuItem) => {
@@ -148,8 +141,8 @@ export default function Sidebar() {
               alignItems: 'center',
               justifyContent: 'center',
               borderRadius: 2,
-              backgroundImage: `url('/xpg-icon.png')`, // public 폴더 경로
-              backgroundSize: 'contain', // 박스 크기에 맞춰 이미지를 포함
+              backgroundImage: `url('/xpg-icon.png')`,
+              backgroundSize: 'contain',
               backgroundRepeat: 'no-repeat',
               backgroundPosition: 'center',
             }}
@@ -159,89 +152,104 @@ export default function Sidebar() {
 
         {/* Menu Items */}
         <List component="nav" sx={{ flexGrow: 1 }}>
-          {menuItems.map((item) => (
-            <Box key={item.name}>
-              <ListItemButton
-                onClick={() => handleMenuClick(item)}
-                selected={pathname === item.path || pathname.startsWith(item.path + '/')}
-                sx={{
-                  borderRadius: 2,
-                  mb: 0.5,
-                  '&.Mui-selected': {
-                    bgcolor: 'primary.main',
-                    color: 'white',
-                    '&:hover': {
-                      bgcolor: 'primary.dark'
+          {menuItems.map((item) => {
+            
+            let isActive = false;
+            if (item.name === '리워드') {
+              // '리워드'는 특별 케이스: 여러 경로를 확인
+              isActive = pathname.startsWith('/save/rewards') || pathname.startsWith('/save/stores') || pathname.startsWith('/save/payments');
+            } else if (item.name === 'HOME') {
+              // 'HOME'은 정확히 일치할 때만 활성화
+              isActive = pathname === item.path;
+            } else {
+              // '콘텐츠', 'NFC', '회원관리'는 startsWith로 활성화
+              isActive = pathname.startsWith(item.path);
+            }
+            
+            return (
+              <Box key={item.name}>
+                <ListItemButton
+                  onClick={() => handleMenuClick(item)}
+                  selected={isActive} // [수정] 활성화 로직 적용
+                  sx={{
+                    borderRadius: 2,
+                    mb: 0.5,
+                    '&.Mui-selected': {
+                      bgcolor: 'primary.main',
+                      color: 'white',
+                      '&:hover': {
+                        bgcolor: 'primary.dark'
+                      },
+                      '& .MuiSvgIcon-root': {
+                        color: 'white'
+                      }
                     },
-                    '& .MuiSvgIcon-root': {
-                      color: 'white'
+                    '&:hover': {
+                      bgcolor: 'grey.200',
+                      borderRadius: 2
                     }
-                  },
-                  '&:hover': {
-                    bgcolor: 'grey.200',
-                    borderRadius: 2
-                  }
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
-                  {item.icon}
-                  <ListItemText 
-                    primary={item.name}
-                    primaryTypographyProps={{
-                      fontSize: '0.95rem',
-                      fontWeight: pathname === item.path || pathname.startsWith(item.path + '/') ? 600 : 400
-                    }}
-                  />
-                  {item.subItems && (
-                    openMenus[item.name] ? <ExpandLess /> : <ExpandMore />
-                  )}
-                </Box>
-              </ListItemButton>
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
+                    {item.icon}
+                    <ListItemText 
+                      primary={item.name}
+                      primaryTypographyProps={{
+                        fontSize: '0.95rem',
+                        fontWeight: isActive ? 600 : 400 // [수정] 활성화 로직 적용
+                      }}
+                    />
+                    {item.subItems && (
+                      openMenus[item.name] ? <ExpandLess /> : <ExpandMore />
+                    )}
+                  </Box>
+                </ListItemButton>
 
-              {/* Sub Menu Items */}
-              {item.subItems && (
-                <Collapse in={openMenus[item.name]} timeout="auto" unmountOnExit>
-                  <List component="div" disablePadding>
-                    {item.subItems.map((subItem) => (
-                      <ListItemButton
-                        key={subItem.name}
-                        onClick={() => handleSubMenuClick(subItem.path)}
-                        selected={pathname.replace(/\/$/, '') === subItem.path}
-                        sx={{
-                          pl: 6,
-                          py: 1,
-                          borderRadius: 2,
-                          ml: 2,
-                          mb: 0.5,
-                          '&.Mui-selected': {
-                            bgcolor: 'grey.200',
-                            color: 'text.primary',
-                            fontWeight: 600,
-                            py: 0.75,
+                {/* Sub Menu Items */}
+                {item.subItems && (
+                  <Collapse in={openMenus[item.name]} timeout="auto" unmountOnExit>
+                    <List component="div" disablePadding>
+                      {item.subItems.map((subItem) => (
+                        <ListItemButton
+                          key={subItem.name}
+                          onClick={() => handleSubMenuClick(subItem.path)}
+                          selected={pathname.replace(/\/$/, '') === subItem.path}
+                          sx={{
+                            pl: 6,
+                            py: 1,
+                            borderRadius: 2,
+                            ml: 2,
+                            mb: 0.5,
+                            '&.Mui-selected': {
+                              bgcolor: 'grey.200',
+                              color: 'text.primary',
+                              fontWeight: 600,
+                              py: 0.75,
+                              '&:hover': {
+                                bgcolor: '#eeeeee'
+                              }
+                            },
                             '&:hover': {
-                              bgcolor: '#eeeeee'
+                              bgcolor: 'grey.200',
+                              borderRadius: 2
                             }
-                          },
-                          '&:hover': {
-                            bgcolor: 'grey.200',
-                            borderRadius: 2
-                          }
-                        }}
-                      >
-                        <ListItemText
-                          primary={subItem.name}
-                          primaryTypographyProps={{
-                            fontSize: '0.875rem',
-                            fontWeight: pathname.replace(/\/$/, '') === subItem.path ? 600 : 400
                           }}
-                        />
-                      </ListItemButton>
-                    ))}
-                  </List>
-                </Collapse>
-              )}
-            </Box>
-          ))}
+                        >
+                          <ListItemText
+                            primary={subItem.name}
+                            primaryTypographyProps={{
+                              fontSize: '0.875rem',
+                              fontWeight: pathname.replace(/\/$/, '') === subItem.path ? 600 : 400
+                            }}
+                          />
+                        </ListItemButton>
+                      ))}
+                    </List>
+                  </Collapse>
+                )}
+              </Box>
+            );
+          })}
         </List>
       </Box>
     </Drawer>

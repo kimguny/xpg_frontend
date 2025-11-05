@@ -58,7 +58,6 @@ interface StoreRegisterFormProps {
   storeId?: string;
 }
 
-// [5. 추가] 상품 상태 칩 (리워드 관리 페이지에서 가져옴)
 const getStatusChip = (reward: StoreReward) => {
   if (!reward.is_active) {
     return <Chip label="비활성" color="default" size="small" />;

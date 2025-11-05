@@ -172,7 +172,7 @@ export default function RewardManagementContent() {
 
   return (
     <Box>
-      <Typography variant="h5" sx={{ fontWeight: 'bold', mb: 2 }}>리워드 관리</Typography>
+      <Typography variant="h5" sx={{ fontWeight: 'bold', mb: 2 }}>상품 관리</Typography>
 
       {/* 상단 통계 카드 */}
       <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
