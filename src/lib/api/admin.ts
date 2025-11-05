@@ -48,6 +48,7 @@ export interface Content {
   next_content_id: string | null;
   created_at: string;
   is_open: boolean;
+  active_stage_count: number;
 }
 
 // NfcTag 타입 (NFCTagResponse 스키마 기준)

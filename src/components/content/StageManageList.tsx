@@ -146,9 +146,8 @@ export default function StageManageList({ contentId }: StageManageListProps) {
                       )}
                     </TableCell>
                     
-                    {/* [수정] NFC: 필요 개수 표시 */}
                     <TableCell sx={{ verticalAlign: 'top' }}>
-                      {stage.isRegistered && stage.clear_need_nfc_count
+                      {stage.clear_need_nfc_count && stage.clear_need_nfc_count > 0
                         ? `${stage.clear_need_nfc_count}개 필요`
                         : (stage.uses_nfc ? '사용' : '-')}
                     </TableCell>

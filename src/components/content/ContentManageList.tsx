@@ -138,7 +138,7 @@ export default function ContentManageList() {
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Typography variant="body2">
-                          0/{content.stage_count ?? 'N/A'}
+                          {content.active_stage_count}/{content.stage_count ?? 'N/A'}
                         </Typography>
                         <Button variant="contained" size="small" onClick={() => handleStageManage(content.id)} sx={{ minWidth: 60 }}>
                           관리
