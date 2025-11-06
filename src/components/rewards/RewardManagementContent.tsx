@@ -97,6 +97,7 @@ export default function RewardManagementContent() {
       totalQty: reward.stock_qty === null ? 99999 : reward.stock_qty,
       remainingQty: reward.stock_qty === null ? 99999 : reward.stock_qty,
       store_id: reward.store_id, 
+      is_active: reward.is_active,
     }));
   }, [apiRewards]);
 
@@ -202,6 +203,7 @@ export default function RewardManagementContent() {
                 <TableCell sx={{ fontWeight: 600 }}>필요 포인트</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>총 수량</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>잔여 수량</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>재고 상황</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>상태</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>관리</TableCell>
               </TableRow>
@@ -223,6 +225,13 @@ export default function RewardManagementContent() {
                     <TableCell>{reward.remainingQty === 99999 ? '무제한' : reward.remainingQty}</TableCell>
                     <TableCell>
                       {getStatusChip(reward.remainingQty)}
+                    </TableCell>
+                    <TableCell>
+                      <Chip 
+                        label={reward.is_active ? "활성화" : "비활성화"}
+                        color={reward.is_active ? "success" : "default"}
+                        size="small" 
+                      />
                     </TableCell>
                     <TableCell>
                       <Button variant="outlined" size="small" sx={{ mr: 1 }} onClick={() => openEditModal(reward.id as string)}>수정</Button>
