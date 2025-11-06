@@ -303,6 +303,7 @@ export interface HintCreatePayload {
   preset: string;
   order_no: number;
   text_blocks: string[];
+  images?: { url: string; alt_text?: string; order_no: number }[] | null;
   cooldown_sec?: number;
   reward_coin?: number;
   nfc_id?: string | null;
@@ -987,4 +988,16 @@ export const getMe = async (): Promise<MeResponse> => {
   // apiClient가 /api/v1을 기본 경로로 사용한다고 가정
   const response = await apiClient.get<MeResponse>('/me');
   return response.data;
+};
+
+// ==========================================================
+// [신규] 힌트 삭제 API
+// ==========================================================
+
+/**
+ * 관리자용: 특정 힌트를 삭제합니다.
+ * (DELETE /api/v1/admin/stages/hints/{hintId})
+ */
+export const deleteAdminHint = async (hintId: string): Promise<void> => {
+  await apiClient.delete(`/admin/stages/hints/${hintId}`);
 };
