@@ -1,12 +1,12 @@
 'use client';
 
-// [1. 수정] FormProvider, useForm, useQueryClient 추가
+// [1. FormProvider, useForm, useQueryClient 추가]
 import { Box, Button, TextField, Typography, IconButton, FormLabel, FormControl, CircularProgress, List, ListItem, ListItemText, Select, MenuItem, InputLabel, FormHelperText, RadioGroup, FormControlLabel, Radio, Divider } from '@mui/material';
 import { useForm, SubmitHandler, Controller, FormProvider } from 'react-hook-form';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCreateHint } from '@/hooks/mutation/useCreateHint';
-import { useDeleteHint } from '@/hooks/mutation/useDeleteHint'; // [2. 추가] 힌트 삭제 훅
-import { Delete as DeleteIcon } from '@mui/icons-material'; // [3. 추가] 삭제 아이콘
+import { useDeleteHint } from '@/hooks/mutation/useDeleteHint';
+import { Delete as DeleteIcon } from '@mui/icons-material';
 import { 
   HintCreatePayload, 
   Hint,
@@ -25,7 +25,7 @@ interface HintSettingsTabProps {
   hints: Hint[]; 
 }
 
-// [4. 수정] FullHintFormData 타입: cardSwipe 로직 변경 (카드당 이미지)
+// [2. FullHintFormData 타입: "카드1 > 이미지3" 구조로 수정]
 export type FullHintFormData = {
   preset: 'cardSwipe' | 'topImage' | 'middleImage' | 'timeAttack';
   nfc_id: string | null;
@@ -34,7 +34,7 @@ export type FullHintFormData = {
     cards: { 
       title: string; 
       text: string;
-      imageUrl: string; // [5. 수정] 카드 1개당 이미지는 1개 (스크린샷 기준)
+      images: { url: string }[]; // 각 카드 내부에 이미지 배열
     }[];
   };
   topImage: { imageUrl: string; textBlocks: { text: string }[] };
@@ -46,21 +46,21 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
   
   const queryClient = useQueryClient();
   const createHintMutation = useCreateHint(stageId);
-  const deleteHintMutation = useDeleteHint(); // [6. 추가] 삭제 훅 사용
+  const deleteHintMutation = useDeleteHint(); 
 
   const { data: nfcData, isLoading: isLoadingNfcTags } = useQuery<PaginatedResponse<NfcTag>>({
     queryKey: ['adminNfcTags'],
     queryFn: () => getAdminNfcTags(),
   });
 
-  // [7. 수정] useForm을 methods로 정의 (ts(2739) 오류 해결)
+  // [3. useForm을 methods로 정의 (ts(2739) 오류 해결)]
   const methods = useForm<FullHintFormData>({
     defaultValues: {
       preset: 'cardSwipe',
       nfc_id: '',
       reward_coin: '',
       cardSwipe: { 
-        cards: [{ title: '', text: '', imageUrl: '' }] // imageUrl 기본값 추가
+        cards: [{ title: '', text: '', images: [] }] // images 기본값 추가
       },
       topImage: { imageUrl: '', textBlocks: [{ text: '' }] },
       middleImage: { topText: '', mediaUrl: '', bottomText: '' },
@@ -68,10 +68,11 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
     },
   });
 
+  // methods에서 필요한 함수들을 구조 분해
   const { control, handleSubmit, watch, reset } = methods;
   const selectedPreset = watch('preset');
 
-  // [8. 수정] onSubmit 로직: payload.images를 cardSwipe에서 추출
+  // [4. onSubmit 로직: payload.images를 cardSwipe의 중첩 배열에서 추출]
   const onSubmit: SubmitHandler<FullHintFormData> = (data) => {
     let text_blocks: string[] = [];
     let images: { url: string; alt_text?: string; order_no: number }[] = [];
@@ -80,16 +81,15 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
     switch (data.preset) {
       case 'cardSwipe':
         text_blocks = data.cardSwipe.cards.map(card => `${card.title || ''}|${card.text || ''}`);
-        // 카드 스와이프의 이미지는 images 필드로 별도 전송 (스크린샷 1의 "5. 이미지 등록" 기준)
-        // (만약 각 카드에 이미지가 귀속된다면 백엔드 API 스키마 변경이 필요함)
-        // [수정] 스키마(HintCreate)에 맞게 images 배열을 생성합니다.
-        images = data.cardSwipe.cards
-          .map((card, i) => ({
-            url: card.imageUrl,
-            alt_text: card.title || `Card Image ${i + 1}`,
-            order_no: i + 1,
+        // 각 카드의 이미지 배열을 순회하며 고유한 order_no 부여
+        images = data.cardSwipe.cards.flatMap((card, cardIndex) => 
+          (card.images || []).map((img, imgIndex) => ({
+            url: img.url,
+            alt_text: `Card ${cardIndex + 1} Image ${imgIndex + 1}`,
+            // 예: 카드1의 2번째 이미지는 12, 카드2의 1번째 이미지는 21
+            order_no: (cardIndex + 1) * 10 + (imgIndex + 1), 
           }))
-          .filter(img => img.url); // URL이 있는 이미지만 필터링
+        );
         break;
       case 'topImage':
         text_blocks = data.topImage.textBlocks.map(block => block.text || '');
@@ -115,7 +115,7 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
       reward_coin: Number(data.reward_coin) || 0,
       nfc_id: data.nfc_id || null, 
       text_blocks: text_blocks.filter(t => t && t !== '|'), 
-      images: images, 
+      images: images.filter(img => img.url), 
       cooldown_sec: cooldown_sec,
     };
     
@@ -131,7 +131,7 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
     });
   };
 
-  // [9. 추가] 힌트 삭제 핸들러
+  // [5. 힌트 삭제 핸들러]
   const handleDeleteHint = (hintId: string) => {
     if (confirm('이 힌트를 정말 삭제하시겠습니까?')) {
       deleteHintMutation.mutate({ hintId, stageId });
@@ -142,7 +142,7 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
     return <CircularProgress />;
   }
   
-  // [10. 수정] renderPresetForm: AR 카메라 제거
+  // [6. renderPresetForm: AR 카메라 제거]
   const renderPresetForm = () => {
     switch (selectedPreset) {
       case 'cardSwipe':
@@ -167,7 +167,7 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
             <ListItem 
               key={hint.id} 
               divider={index < hints.length - 1}
-              // [11. 추가] 삭제 버튼 (퍼즐 참고)
+              // [7. 삭제 버튼 추가]
               secondaryAction={
                 <IconButton 
                   edge="end" 
@@ -194,7 +194,7 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
       
       <Divider sx={{ my: 4 }} />
       
-      {/* [12. 수정] FormProvider로 폼 전체를 감쌈 */}
+      {/* [8. FormProvider로 폼 전체를 감쌈] */}
       <FormProvider {...methods}>
         <Box>
           <Typography variant="h6" sx={{ mb: 3 }}>새 힌트 추가</Typography>
@@ -247,7 +247,7 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
           </Box>
           
           <Box sx={{ mt: 3 }}>
-            {/* [13. 수정] <form> 중첩 방지 (Hydration Error) */}
+            {/* [9. <form> 중첩 방지 (Hydration Error)] */}
             <Button 
               type="button" 
               variant="contained" 
