@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, Controller, SubmitHandler } from 'react-hook-form';
 import {
@@ -17,11 +17,13 @@ import {
   Tabs,
   Tab,
   CircularProgress,
+  Avatar,
 } from '@mui/material';
 import { useCreateStage } from '@/hooks/mutation/useCreateStage';
 import { useUpdateStage } from '@/hooks/mutation/useUpdateStage';
 import { useGetStageById } from '@/hooks/query/useGetStageById';
 import { StageCreatePayload } from '@/lib/api/admin';
+import { useUploadImage } from '@/hooks/mutation/useUploadImage'; 
 
 import HintSettingsTab from './tabs/HintSettingsTab';
 import PuzzleSettingsTab from './tabs/PuzzleSettingsTab';
@@ -34,7 +36,7 @@ interface StageRegisterFormProps {
   stageNo?: string;
 }
 
-type StageFormData = Omit<StageCreatePayload, 'location' | 'time_limit_min' | 'clear_need_nfc_count' | 'clear_time_attack_sec'> & {
+type StageFormData = Omit<StageCreatePayload, 'location' | 'time_limit_min' | 'clear_need_nfc_count' | 'clear_time_attack_sec' | 'background_image_url'> & {
   latitude?: number | string;
   longitude?: number | string;
   radius_m?: number | string;
@@ -42,7 +44,10 @@ type StageFormData = Omit<StageCreatePayload, 'location' | 'time_limit_min' | 'c
   time_limit_min?: number | string | null;
   clear_need_nfc_count?: number | string | null;
   clear_time_attack_sec?: number | string | null;
+  thumbnail_url: string | null; 
 };
+
+const API_BASE_URL = 'http://121.126.223.205:8000';
 
 export default function StageRegisterForm({ contentId, stageId, stageNo }: StageRegisterFormProps) {
   const router = useRouter();
@@ -50,6 +55,9 @@ export default function StageRegisterForm({ contentId, stageId, stageNo }: Stage
   const [isMapOpen, setIsMapOpen] = useState(false);
 
   const isEditMode = !!stageId;
+  
+  const thumbnailInputRef = useRef<HTMLInputElement>(null);
+  const uploadImageMutation = useUploadImage();
   
   const { data: existingStage, isLoading: isLoadingStage } = useGetStageById(stageId);
   const createMutation = useCreateStage(contentId);
@@ -68,16 +76,15 @@ export default function StageRegisterForm({ contentId, stageId, stageNo }: Stage
       latitude: '',
       longitude: '',
       radius_m: '',
-      // ✨ 1. null 대신 빈 문자열('')로 초기값을 설정합니다.
       time_limit_min: '',
       clear_need_nfc_count: '',
       clear_time_attack_sec: '',
-      background_image_url: '',
       thumbnail_url: '',
     },
   });
 
   const unlockCondition = watch('unlockCondition');
+  const currentThumbnailUrl = watch('thumbnail_url');
 
   useEffect(() => {
     if (existingStage) {
@@ -87,7 +94,6 @@ export default function StageRegisterForm({ contentId, stageId, stageNo }: Stage
         longitude: existingStage.location?.lon ?? '',
         radius_m: existingStage.location?.radius_m ?? '', 
         unlockCondition: existingStage.unlock_stage_id ? 'stage' : (existingStage.location ? 'location' : 'open'),
-        // ✨ 2. API로부터 받은 null 값을 빈 문자열('')로 변환합니다.
         time_limit_min: existingStage.time_limit_min ?? '',
         clear_need_nfc_count: existingStage.clear_need_nfc_count ?? '',
         clear_time_attack_sec: existingStage.clear_time_attack_sec ?? '',
@@ -96,8 +102,7 @@ export default function StageRegisterForm({ contentId, stageId, stageNo }: Stage
     }
   }, [existingStage, reset]);
 
-const onSubmit: SubmitHandler<StageFormData> = (data) => {
-    // (data 분리 로직은 동일)
+  const onSubmit: SubmitHandler<StageFormData> = (data) => {
     const {
       latitude,
       longitude,
@@ -106,7 +111,6 @@ const onSubmit: SubmitHandler<StageFormData> = (data) => {
       ...restOfData 
     } = data;
 
-    // (숫자 변환 로직은 동일)
     const timeLimit = Number(data.time_limit_min);
     const finalTimeLimit = timeLimit >= 1 ? timeLimit : null;
     const timeAttack = Number(data.clear_time_attack_sec);
@@ -114,18 +118,13 @@ const onSubmit: SubmitHandler<StageFormData> = (data) => {
     const nfcCount = Number(data.clear_need_nfc_count);
     const finalNfcCount = nfcCount >= 0 ? nfcCount : null;
 
-    // 4. 백엔드(StageCreate) 스키마와 정확히 일치하는 payload를 생성합니다.
     const payload: StageCreatePayload = {
       ...restOfData, 
       stage_no: data.stage_no,
-      
+      background_image_url: null,
       time_limit_min: finalTimeLimit,
       clear_time_attack_sec: finalTimeAttack,
-      
-      // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-      // [수정] 생성(isEditMode=false) 시에는 DB 트리거 오류 방지를 위해 null을 전송합니다.
-      clear_need_nfc_count: isEditMode ? finalNfcCount : null,
-      // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+      clear_need_nfc_count: finalNfcCount,
 
       location: latitude && longitude ? {
         lat: Number(latitude),
@@ -137,9 +136,6 @@ const onSubmit: SubmitHandler<StageFormData> = (data) => {
       unlock_on_enter_radius: unlockCondition === 'location',
     };
     
-    // (디버깅용 console.log는 이제 삭제하셔도 됩니다)
-    // console.log("[DEBUG] API Payload:", JSON.stringify(payload, null, 2));
-
     if (isEditMode) {
       updateMutation.mutate(payload);
     } else {
@@ -151,8 +147,33 @@ const onSubmit: SubmitHandler<StageFormData> = (data) => {
     setValue('latitude', location.lat);
     setValue('longitude', location.lng);
   };
+  
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  const isLoading = createMutation.isPending || updateMutation.isPending;
+    const uploadFormData = new FormData();
+    uploadFormData.append('file', file);
+
+    uploadImageMutation.mutate(uploadFormData, {
+        onSuccess: (data) => {
+            setValue('thumbnail_url', data.file_path, { shouldValidate: true });
+            alert('이미지가 업로드되어 URL에 반영되었습니다.');
+        },
+        onError: (err) => {
+            alert(`이미지 업로드 실패: ${err.message}`);
+        }
+    });
+    
+    e.target.value = '';
+  };
+  
+  const getFullImageUrl = (url: string) => {
+    if (!url) return '';
+    return url.startsWith('/') ? `${API_BASE_URL}${url}` : url;
+  };
+
+  const isLoading = createMutation.isPending || updateMutation.isPending || uploadImageMutation.isPending;
   const displayStageNo = isEditMode ? existingStage?.stage_no : stageNo;
 
   if (isEditMode && isLoadingStage) {
@@ -199,7 +220,54 @@ const onSubmit: SubmitHandler<StageFormData> = (data) => {
                   <Controller name="longitude" control={control} render={({ field }) => <TextField {...field} label="경도" fullWidth />} />
                   <Button variant="contained" onClick={() => setIsMapOpen(true)} sx={{ minWidth: 120 }}>지도에서 입력</Button>
                 </Box>
-
+                
+                <Box sx={{ border: '1px solid #ccc', p: 2, borderRadius: 1, mb: 3 }}>
+                  <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                    썸네일 이미지 등록
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                    <Button 
+                      variant="contained" 
+                      size="small" 
+                      onClick={() => thumbnailInputRef.current?.click()}
+                      disabled={uploadImageMutation.isPending}
+                      sx={{ minWidth: 80, py: '8.5px' }}
+                    >
+                      {uploadImageMutation.isPending ? '업로드 중...' : '파일 선택'}
+                    </Button>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      ref={thumbnailInputRef}
+                      onChange={handleFileChange} 
+                      style={{ display: 'none' }} 
+                    />
+                    <Controller
+                      name="thumbnail_url"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          value={field.value || ''}
+                          fullWidth
+                          size="small"
+                          label="썸네일 URL"
+                          placeholder="파일을 업로드하거나 URL을 직접 입력하세요."
+                          disabled={uploadImageMutation.isPending}
+                        />
+                      )}
+                    />
+                  </Box>
+                  {currentThumbnailUrl && (
+                    <Avatar
+                      src={getFullImageUrl(currentThumbnailUrl)}
+                      alt="썸네일 미리보기" 
+                      variant="rounded"
+                      sx={{ width: 150, height: 150, mt: 2, border: '1px solid', borderColor: 'grey.300' }}
+                    />
+                  )}
+                </Box>
+                
                 <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>스테이지 해금 조건</Typography>
                 <Box sx={{ mb: 3 }}>
                   <FormControl component="fieldset">
