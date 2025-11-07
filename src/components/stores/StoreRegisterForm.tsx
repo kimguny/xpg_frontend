@@ -466,7 +466,6 @@ export default function StoreRegisterForm({ mode, storeId }: StoreRegisterFormPr
             type="submit" 
             variant="contained" 
             size="large" 
-            color="success"
             disabled={isLoading}
           >
             {isLoading ? '저장 중...' : buttonText}

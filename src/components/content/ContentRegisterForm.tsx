@@ -171,7 +171,7 @@ export default function ContentRegisterForm({ contentId }: ContentRegisterFormPr
       reward_coin: Number(formData.completionReward) || 0,
       center_point:
         formData.latitude && formData.longitude
-          ? { lat: Number(formData.latitude), lon: Number(formData.longitude) }
+          ? { lon: Number(formData.longitude), lat: Number(formData.latitude) }
           : null,
       start_at: formData.isAlwaysOn || !formData.startDate ? null : new Date(formData.startDate).toISOString(),
       end_at: formData.isAlwaysOn || !formData.endDate ? null : new Date(formData.endDate).toISOString(),
@@ -250,7 +250,7 @@ export default function ContentRegisterForm({ contentId }: ContentRegisterFormPr
 
             <Box sx={{ border: '1px solid #ccc', p: 2, borderRadius: 1, mb: 3 }}>
               <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
-                썸네일 이미지 등록 (정사각형 추천)
+                썸네일 이미지 등록 (정사각형)
               </Typography>
               <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
                 <Button 
@@ -291,7 +291,7 @@ export default function ContentRegisterForm({ contentId }: ContentRegisterFormPr
 
             <Box sx={{ border: '1px solid #ccc', p: 2, borderRadius: 1, mb: 3 }}>
               <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
-                배경 이미지 등록 (세로형 직사각형 추천)
+                배경 이미지 등록 (세로형 직사각형)
               </Typography>
               <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
                 <Button 
