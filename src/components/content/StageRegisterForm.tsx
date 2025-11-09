@@ -274,8 +274,8 @@ export default function StageRegisterForm({ contentId, stageId, stageNo }: Stage
                     <Controller name="unlockCondition" control={control} render={({ field }) => (
                         <RadioGroup {...field} row>
                           <FormControlLabel value="open" control={<Radio />} label="오픈" />
-                          <FormControlLabel value="location" control={<Radio />} label="위치 반경" />
-                          <FormControlLabel value="stage" control={<Radio />} label="스테이지 완료" />
+                          {/* <FormControlLabel value="location" control={<Radio />} label="위치 반경" /> */}
+                          {/* <FormControlLabel value="stage" control={<Radio />} label="스테이지 완료" /> */}
                         </RadioGroup>
                       )}
                     />
