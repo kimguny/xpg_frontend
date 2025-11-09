@@ -1,11 +1,10 @@
 'use client';
 
-// [1. FormProvider, useForm, useQueryClient 추가]
 import { Box, Button, TextField, Typography, IconButton, FormLabel, FormControl, CircularProgress, List, ListItem, ListItemText, Select, MenuItem, InputLabel, FormHelperText, RadioGroup, FormControlLabel, Radio, Divider } from '@mui/material';
 import { useForm, SubmitHandler, Controller, FormProvider } from 'react-hook-form';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCreateHint } from '@/hooks/mutation/useCreateHint';
-import { useDeleteHint } from '@/hooks/mutation/useDeleteHint';
+import { useDeleteHint } from '@/hooks/mutation/useDeleteHint'; 
 import { Delete as DeleteIcon } from '@mui/icons-material';
 import { 
   HintCreatePayload, 
@@ -19,27 +18,29 @@ import CardSwipeForm from './hint-presets/CardSwipeForm';
 import TopImageForm from './hint-presets/TopImageForm';
 import MiddleImageForm from './hint-presets/MiddleImageForm';
 import TimeAttackForm from './hint-presets/TimeAttackForm';
+import ArCameraForm from './hint-presets/ArCameraForm'; // [1. ArCameraForm 임포트]
 
 interface HintSettingsTabProps {
   stageId?: string;
   hints: Hint[]; 
 }
 
-// [2. FullHintFormData 타입: "카드1 > 이미지3" 구조로 수정]
+// [2. FullHintFormData 타입에 arCamera 복구]
 export type FullHintFormData = {
-  preset: 'cardSwipe' | 'topImage' | 'middleImage' | 'timeAttack';
+  preset: 'cardSwipe' | 'topImage' | 'middleImage' | 'timeAttack' | 'arCamera';
   nfc_id: string | null;
   reward_coin: number | string;
   cardSwipe: { 
     cards: { 
       title: string; 
       text: string;
-      images: { url: string }[]; // 각 카드 내부에 이미지 배열
+      images: { url: string }[];
     }[];
   };
   topImage: { imageUrl: string; textBlocks: { text: string }[] };
   middleImage: { topText: string; mediaUrl: string; bottomText: string };
   timeAttack: { timeLimit: string; bottomText: string };
+  arCamera: { imageUrl: string }; // [3. arCamera 타입 복구]
 };
 
 export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps) {
@@ -53,26 +54,25 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
     queryFn: () => getAdminNfcTags(),
   });
 
-  // [3. useForm을 methods로 정의 (ts(2739) 오류 해결)]
   const methods = useForm<FullHintFormData>({
     defaultValues: {
       preset: 'cardSwipe',
       nfc_id: '',
       reward_coin: '',
       cardSwipe: { 
-        cards: [{ title: '', text: '', images: [] }] // images 기본값 추가
+        cards: [{ title: '', text: '', images: [] }] 
       },
       topImage: { imageUrl: '', textBlocks: [{ text: '' }] },
       middleImage: { topText: '', mediaUrl: '', bottomText: '' },
       timeAttack: { timeLimit: '', bottomText: '' },
+      arCamera: { imageUrl: '' }, // [4. arCamera 기본값 복구]
     },
   });
 
-  // methods에서 필요한 함수들을 구조 분해
   const { control, handleSubmit, watch, reset } = methods;
   const selectedPreset = watch('preset');
 
-  // [4. onSubmit 로직: payload.images를 cardSwipe의 중첩 배열에서 추출]
+  // [5. onSubmit 로직에 arCamera 케이스 복구]
   const onSubmit: SubmitHandler<FullHintFormData> = (data) => {
     let text_blocks: string[] = [];
     let images: { url: string; alt_text?: string; order_no: number }[] = [];
@@ -81,12 +81,10 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
     switch (data.preset) {
       case 'cardSwipe':
         text_blocks = data.cardSwipe.cards.map(card => `${card.title || ''}|${card.text || ''}`);
-        // 각 카드의 이미지 배열을 순회하며 고유한 order_no 부여
         images = data.cardSwipe.cards.flatMap((card, cardIndex) => 
           (card.images || []).map((img, imgIndex) => ({
             url: img.url,
             alt_text: `Card ${cardIndex + 1} Image ${imgIndex + 1}`,
-            // 예: 카드1의 2번째 이미지는 12, 카드2의 1번째 이미지는 21
             order_no: (cardIndex + 1) * 10 + (imgIndex + 1), 
           }))
         );
@@ -106,6 +104,12 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
       case 'timeAttack':
         text_blocks = [data.timeAttack.bottomText];
         cooldown_sec = Number(data.timeAttack.timeLimit) || 0;
+        break;
+      case 'arCamera':
+        text_blocks = [];
+        if (data.arCamera.imageUrl) {
+          images = [{ url: data.arCamera.imageUrl, alt_text: 'AR Image', order_no: 1 }];
+        }
         break;
     }
 
@@ -131,7 +135,6 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
     });
   };
 
-  // [5. 힌트 삭제 핸들러]
   const handleDeleteHint = (hintId: string) => {
     if (confirm('이 힌트를 정말 삭제하시겠습니까?')) {
       deleteHintMutation.mutate({ hintId, stageId });
@@ -142,7 +145,7 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
     return <CircularProgress />;
   }
   
-  // [6. renderPresetForm: AR 카메라 제거]
+  // [6. renderPresetForm에 arCamera 케이스 복구]
   const renderPresetForm = () => {
     switch (selectedPreset) {
       case 'cardSwipe':
@@ -153,6 +156,8 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
         return <MiddleImageForm control={control} />;
       case 'timeAttack':
         return <TimeAttackForm control={control} />;
+      case 'arCamera':
+        return <ArCameraForm control={control} />;
       default:
         return null;
     }
@@ -167,7 +172,6 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
             <ListItem 
               key={hint.id} 
               divider={index < hints.length - 1}
-              // [7. 삭제 버튼 추가]
               secondaryAction={
                 <IconButton 
                   edge="end" 
@@ -194,7 +198,6 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
       
       <Divider sx={{ my: 4 }} />
       
-      {/* [8. FormProvider로 폼 전체를 감쌈] */}
       <FormProvider {...methods}>
         <Box>
           <Typography variant="h6" sx={{ mb: 3 }}>새 힌트 추가</Typography>
@@ -206,6 +209,7 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
                 <FormControlLabel value="topImage" control={<Radio />} label="상단 이미지형" />
                 <FormControlLabel value="middleImage" control={<Radio />} label="중간 이미지형" />
                 <FormControlLabel value="timeAttack" control={<Radio />} label="타임어택형" />
+                <FormControlLabel value="arCamera" control={<Radio />} label="AR 카메라형" /> 
               </RadioGroup>
             )}/>
           </FormControl>
@@ -247,7 +251,6 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
           </Box>
           
           <Box sx={{ mt: 3 }}>
-            {/* [9. <form> 중첩 방지 (Hydration Error)] */}
             <Button 
               type="button" 
               variant="contained" 
