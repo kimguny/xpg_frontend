@@ -11,9 +11,10 @@ export const useUpdatePuzzles = (stageId: string | undefined) => {
       }
       return updateStagePuzzles({ stageId, payload });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['adminStage', stageId] });
-      alert('퍼즐 설정이 저장되었습니다.');
+    onSuccess: (data, variables) => {
+      if (stageId) {
+        queryClient.invalidateQueries({ queryKey: ['adminStageById', stageId] });
+      }
     },
     onError: (err) => {
       if (err instanceof Error) {
