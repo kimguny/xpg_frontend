@@ -7,8 +7,7 @@ export const useCreateHint = (stageId: string | undefined) => {
   return useMutation({
     mutationFn: (payload: HintCreatePayload) => createAdminHint({ stageId: stageId!, payload }),
     onSuccess: () => {
-      // 힌트 생성 성공 시, 해당 스테이지의 힌트 목록 쿼리를 무효화하여 새로고침
-      queryClient.invalidateQueries({ queryKey: ['adminHints', stageId] });
+      queryClient.invalidateQueries({ queryKey: ['adminStageById', stageId] });
     },
     onError: (err) => {
       alert(`힌트 생성 실패: ${err.message}`);
