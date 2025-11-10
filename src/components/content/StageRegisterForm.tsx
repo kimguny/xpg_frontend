@@ -319,7 +319,7 @@ export default function StageRegisterForm({ contentId, stageId, stageNo }: Stage
             {activeTab === 3 && <UnlockSettingsTab stageId={stageId}/>}
             
             <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', pt: 3, mt: 3, borderTop: '1px solid', borderColor: 'divider' }}>
-              <Button variant="outlined">미리보기</Button>
+              {/* <Button variant="outlined">미리보기</Button> */}
               <Button type="submit" variant="contained" disabled={isLoading}>
                 {isLoading ? '저장 중...' : (isEditMode ? '수정하기' : '저장하기')}
               </Button>
