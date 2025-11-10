@@ -309,6 +309,17 @@ export interface HintCreatePayload {
   nfc_id?: string | null;
 }
 
+// [1. 힌트 수정을 위한 Payload 타입 추가 (HintUpdate 스키마 기반)]
+export interface HintUpdatePayload {
+  preset?: string;
+  text_blocks?: string[];
+  images?: { url: string; alt_text?: string; order_no: number }[] | null;
+  cooldown_sec?: number;
+  reward_coin?: number;
+  nfc_id?: string | null; // null을 허용하여 NFC 연결 해제
+}
+
+
 // 힌트 응답 타입 (HintResponse 스키마 기반)
 export interface Hint {
   id: string;
@@ -318,6 +329,8 @@ export interface Hint {
   text_block_1: string | null;
   text_block_2: string | null;
   text_block_3: string | null;
+  cooldown_sec: number; // [수정] 힌트 응답에 cooldown_sec 포함 (기존 파일 누락 수정)
+  reward_coin: number; // [수정] 힌트 응답에 reward_coin 포함 (기존 파일 누락 수정)
   nfc: {
     id: string;
     udid: string;
@@ -352,6 +365,23 @@ export const createAdminHint = async ({
   const response = await apiClient.post<Hint>(`/admin/stages/${stageId}/hints`, payload);
   return response.data;
 };
+
+// [2. 힌트 수정 API 함수 추가]
+/**
+ * 관리자용: 힌트 정보 수정 (PATCH /admin/stages/hints/{hintId})
+ */
+export const updateAdminHint = async ({
+  hintId,
+  payload,
+}: {
+  hintId: string;
+  payload: HintUpdatePayload;
+}): Promise<Hint> => {
+  const response = await apiClient.patch<Hint>(`/admin/stages/hints/${hintId}`, payload);
+  return response.data;
+};
+
+
 // 1. 요청 시 보내는 데이터의 타입 (기존과 동일)
 // export interface PuzzlePayload {
 //   puzzles: {

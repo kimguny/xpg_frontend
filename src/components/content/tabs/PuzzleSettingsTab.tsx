@@ -190,7 +190,7 @@ export default function PuzzleSettingsTab({ stageId, puzzles }: PuzzleSettingsTa
             onChange={(e) => setFormState(prev => ({ ...prev, showWhen: e.target.value as 'always' | 'after_clear' }))}
           >
             <FormControlLabel value="always" control={<Radio />} label="힌트 하단 상시 표시" />
-            <FormControlLabel value="after_clear" control={<Radio />} label="스테이지 완료 후 표시" />
+            {/* <FormControlLabel value="after_clear" control={<Radio />} label="스테이지 완료 후 표시" /> */}
           </RadioGroup>
         </FormControl>
 
