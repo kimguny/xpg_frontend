@@ -3,7 +3,7 @@ import { getAdminStageById } from '@/lib/api/admin';
 
 export const useGetStageById = (stageId: string | undefined) => {
   return useQuery({
-    queryKey: ['adminStage', stageId],
+    queryKey: ['adminStageById', stageId],
     queryFn: () => getAdminStageById(stageId!),
     enabled: !!stageId,
   });
