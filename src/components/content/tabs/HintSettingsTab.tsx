@@ -55,6 +55,7 @@ interface HintSettingsTabProps {
   hints: Hint[]; 
 }
 
+// [수정 1. FullHintFormData 타입 수정]
 export type FullHintFormData = {
   preset: 'cardSwipe' | 'topImage' | 'middleImage' | 'timeAttack' | 'arCamera';
   nfc_id: string | null;
@@ -69,7 +70,11 @@ export type FullHintFormData = {
   topImage: { imageUrl: string; textBlocks: { text: string }[] };
   middleImage: { topText: string; mediaUrl: string; bottomText: string };
   timeAttack: { timeLimit: string; bottomText: string };
-  arCamera: { imageUrl: string };
+  // [수정 1.1] arCamera에서 answerStyle과 bonusCoin 제거
+  arCamera: { 
+    imageUrl: string;
+    answer: string;
+  };
 };
 
 // [2. 헬퍼 함수 추가: API 응답(Hint) -> 폼 데이터(FullHintFormData)]
@@ -84,10 +89,13 @@ function convertHintToFormData(hint: Hint): FullHintFormData {
     topImage: { imageUrl: '', textBlocks: [{ text: '' }] },
     middleImage: { topText: '', mediaUrl: '', bottomText: '' },
     timeAttack: { timeLimit: '', bottomText: '' },
-    arCamera: { imageUrl: '' },
+    // [수정 1.2] 헬퍼 함수의 arCamera 기본값도 맞춤
+    arCamera: { 
+      imageUrl: '',
+      answer: '',
+    },
   };
 
-  // [오류 1 수정] 'let' -> 'const'로 변경. (내부 속성은 여전히 수정 가능)
   const formData: FullHintFormData = {
     ...defaultData,
     preset: preset as FullHintFormData['preset'],
@@ -97,12 +105,11 @@ function convertHintToFormData(hint: Hint): FullHintFormData {
 
   try {
     switch (preset) {
+      // (cardSwipe, topImage, middleImage, timeAttack 케이스는 기존과 동일)
       case 'cardSwipe':
-        // text_block_1: "제목1|내용1", text_block_2: "제목2|내용2"
         const texts = [text_block_1, text_block_2, text_block_3].filter(Boolean) as string[];
         const cards = texts.map((text, index) => {
           const [title, cardText = ''] = text.split('|');
-          // order_no: 11, 12, 13 (카드1) / 21, 22 (카드2)
           const cardImages = images
             .filter(img => Math.floor(img.order_no / 10) === (index + 1))
             .sort((a, b) => a.order_no - b.order_no)
@@ -127,16 +134,18 @@ function convertHintToFormData(hint: Hint): FullHintFormData {
         formData.timeAttack.timeLimit = String(cooldown_sec || 0);
         formData.timeAttack.bottomText = text_block_1 || '';
         break;
+
+      // [수정 4. convertHintToFormData 로직 수정]
       case 'arCamera':
         formData.arCamera.imageUrl = images[0]?.url || '';
+        // text_block_1에서 정답 데이터 파싱
+        formData.arCamera.answer = text_block_1 || '';
         break;
       default:
-         // cardSwipe로 강제
          formData.preset = 'cardSwipe';
     }
   } catch (e) {
     console.error("Hint to form data conversion failed. Falling back to default.", e, hint);
-    // 에러 발생 시 기본값으로 복귀 (데이터가 꼬이는 것을 방지)
     return {
       ...defaultData,
       preset: 'cardSwipe',
@@ -151,12 +160,11 @@ function convertHintToFormData(hint: Hint): FullHintFormData {
 
 export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps) {
   
-  // [3.1 수정 중인 힌트 state]
   const [editingHint, setEditingHint] = useState<Hint | null>(null);
 
   const queryClient = useQueryClient();
   const createHintMutation = useCreateHint(stageId);
-  const updateHintMutation = useUpdateHint(); // [3.2 수정 mutation 훅]
+  const updateHintMutation = useUpdateHint();
   const deleteHintMutation = useDeleteHint(); 
 
   const { data: nfcData, isLoading: isLoadingNfcTags } = useQuery<PaginatedResponse<NfcTag>>({
@@ -164,6 +172,7 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
     queryFn: () => getAdminNfcTags(),
   });
 
+  // [수정 2. defaultValues 수정]
   const defaultFormValues: FullHintFormData = {
     preset: 'cardSwipe',
     nfc_id: '',
@@ -174,7 +183,11 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
     topImage: { imageUrl: '', textBlocks: [{ text: '' }] },
     middleImage: { topText: '', mediaUrl: '', bottomText: '' },
     timeAttack: { timeLimit: '', bottomText: '' },
-    arCamera: { imageUrl: '' },
+    // [수정 2.1] arCamera 기본값 축소
+    arCamera: { 
+      imageUrl: '',
+      answer: '',
+    },
   };
 
   const methods = useForm<FullHintFormData>({
@@ -184,27 +197,26 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
   const { control, handleSubmit, watch, reset } = methods;
   const selectedPreset = watch('preset');
 
-  // [4.1 수정 시작 핸들러]
   const handleStartEdit = (hint: Hint) => {
     const formData = convertHintToFormData(hint);
     setEditingHint(hint);
-    reset(formData); // 폼 데이터를 수정할 힌트의 데이터로 리셋
+    reset(formData); 
   };
 
-  // [4.2 수정 취소 핸들러]
   const handleCancelEdit = () => {
     setEditingHint(null);
-    reset(defaultFormValues); // 폼을 기본값(빈 폼)으로 리셋
+    reset(defaultFormValues); 
   };
 
 
-  // [5. onSubmit 로직 수정: 생성/수정 분기]
+  // [수정 3. onSubmit 로직 수정]
   const onSubmit: SubmitHandler<FullHintFormData> = (data) => {
     let text_blocks: string[] = [];
     let images: { url: string; alt_text?: string; order_no: number }[] = [];
     let cooldown_sec = 0; 
 
     switch (data.preset) {
+      // (cardSwipe, topImage, middleImage, timeAttack 케이스는 기존과 동일)
       case 'cardSwipe':
         text_blocks = data.cardSwipe.cards.map(card => `${card.title || ''}|${card.text || ''}`);
         images = data.cardSwipe.cards.flatMap((card, cardIndex) => 
@@ -231,21 +243,24 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
         text_blocks = [data.timeAttack.bottomText];
         cooldown_sec = Number(data.timeAttack.timeLimit) || 0;
         break;
+
+      // [수정 3.1] arCamera 케이스 로직 변경
       case 'arCamera':
-        text_blocks = [];
+        // 정답 데이터만 text_block_1에 저장
+        text_blocks = [
+          data.arCamera.answer,
+        ];
         if (data.arCamera.imageUrl) {
           images = [{ url: data.arCamera.imageUrl, alt_text: 'AR Image', order_no: 1 }];
         }
         break;
     }
 
-    // 공통 페이로드 (생성/수정 겸용)
-    // [오류 2 수정] 'commonPayload'의 명시적 타입(Omit<...>) 제거
-    // data.preset이 string | undefined가 아닌 string임을 TS가 추론하도록 함
     const commonPayload = {
       preset: data.preset,
       reward_coin: Number(data.reward_coin) || 0,
-      nfc_id: data.nfc_id || null, 
+      // [수정 3.2] arCamera 프리셋일 경우, nfc_id를 강제로 null로 설정
+      nfc_id: data.preset === 'arCamera' ? null : (data.nfc_id || null), 
       text_blocks: text_blocks.filter(t => t && t !== '|'), 
       images: images.filter(img => img.url), 
       cooldown_sec: cooldown_sec,
@@ -256,10 +271,10 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
       updateHintMutation.mutate({
         hintId: editingHint.id,
         stageId: stageId!,
-        payload: commonPayload // HintUpdatePayload로 추론됨
+        payload: commonPayload
       }, {
         onSuccess: () => {
-          handleCancelEdit(); // 폼 리셋 및 모달 닫기
+          handleCancelEdit(); 
           queryClient.invalidateQueries({ queryKey: ['adminStageById', stageId] });
         },
         onError: (err) => {
@@ -270,14 +285,14 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
     } else {
       // --- 생성 모드 ---
       const createPayload: HintCreatePayload = {
-        ...commonPayload, // 'preset'이 string으로 추론되어 타입 오류 해결
+        ...commonPayload, 
         order_no: (hints?.length || 0) + 1, 
       };
       
       createHintMutation.mutate(createPayload, {
         onSuccess: () => {
           alert('새로운 힌트가 추가되었습니다.');
-          handleCancelEdit(); // 생성 후 폼 리셋
+          handleCancelEdit(); 
           queryClient.invalidateQueries({ queryKey: ['adminStageById', stageId] });
         },
         onError: (err) => {
@@ -315,7 +330,6 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
   }
 
   // [6. 폼 렌더링 로직 (공통)]
-  // '새 힌트 추가' 폼과 '힌트 수정' 모달이 동일한 폼을 사용하도록 추출
   const renderHintForm = () => (
     <FormProvider {...methods}>
       <FormControl component="fieldset" sx={{ mb: 3 }}>
@@ -336,33 +350,36 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
       <Box sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 2, mt: 3 }}>
         <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>공통 설정</Typography>
         
-        <FormControl fullWidth sx={{ mb: 2 }}>
-          <InputLabel id="nfc-select-label">연계 NFC (선택)</InputLabel>
-          <Controller
-            name="nfc_id"
-            control={control}
-            render={({ field }) => (
-              <Select
-                {...field}
-                labelId="nfc-select-label"
-                label="연계 NFC (선택)"
-                value={field.value || ''} 
-              >
-                <MenuItem value="">
-                  <em>선택 안 함</em>
-                </MenuItem>
-                {nfcData?.items.map((tag) => (
-                  <MenuItem key={tag.id} value={tag.id}>
-                    {tag.tag_name} (ID: {tag.id.substring(0, 8)}...)
+        {/* [수정 5. NFC 선택 UI 조건부 렌더링] */}
+        {selectedPreset !== 'arCamera' && (
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel id="nfc-select-label">연계 NFC (선택)</InputLabel>
+            <Controller
+              name="nfc_id"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  {...field}
+                  labelId="nfc-select-label"
+                  label="연계 NFC (선택)"
+                  value={field.value || ''} 
+                >
+                  <MenuItem value="">
+                    <em>선택 안 함</em>
                   </MenuItem>
-                ))}
-              </Select>
+                  {nfcData?.items.map((tag) => (
+                    <MenuItem key={tag.id} value={tag.id}>
+                      {tag.tag_name} (ID: {tag.id.substring(0, 8)}...)
+                    </MenuItem>
+                  ))}
+                </Select>
+              )}
+            />
+            {!nfcData?.items.length && (
+              <FormHelperText>등록된 NFC 태그가 없습니다.</FormHelperText>
             )}
-          />
-          {!nfcData?.items.length && (
-            <FormHelperText>등록된 NFC 태그가 없습니다.</FormHelperText>
-          )}
-        </FormControl>
+          </FormControl>
+        )}
 
         <Controller 
           name="reward_coin" 
@@ -372,7 +389,7 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
               {...field} 
               type="number" 
               label="클리어 보상 (코인)" 
-              value={field.value || ''} // 0 대신 ''를 표시
+              value={field.value || ''}
             />
           )} 
         />
@@ -392,7 +409,6 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
               key={hint.id} 
               divider={index < hints.length - 1}
               secondaryAction={
-                // [7. 수정 버튼 추가]
                 <Box>
                   <IconButton 
                     edge="end" 
@@ -415,7 +431,7 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
               }
             >
               <ListItemText 
-                primary={`${hint.order_no}: ${hint.text_block_1 || hint.preset || '(내용 없음)'}`} // [수정] 내용 없으면 프리셋 이름 표시
+                primary={`${hint.order_no}: ${hint.text_block_1 || hint.preset || '(내용 없음)'}`} 
                 secondary={`프리셋: ${hint.preset} / NFC: ${hint.nfc ? hint.nfc.tag_name : '없음'}`} 
               />
             </ListItem>
@@ -430,7 +446,6 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
       <Divider sx={{ my: 4 }} />
       
       {/* --- 힌트 생성 폼 --- */}
-      {/* [8. 수정 모드가 아닐 때만 '새 힌트 추가' 폼을 보여줌] */}
       {!editingHint && (
         <Box>
           <Typography variant="h6" sx={{ mb: 3 }}>새 힌트 추가</Typography>
@@ -449,7 +464,6 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
       )}
 
       {/* --- 힌트 수정 모달 --- */}
-      {/* [9. 수정 모드일 때 '힌트 수정' 모달을 띄움] */}
       <Dialog 
         open={!!editingHint} 
         onClose={handleCancelEdit} 

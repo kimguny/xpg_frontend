@@ -1,6 +1,14 @@
 'use client';
 
-import { Box, TextField, Button, Avatar, Typography } from '@mui/material';
+// [수정 1. Import 축소]
+import { 
+  Box, 
+  TextField, 
+  Button, 
+  Avatar, 
+  Typography
+} from '@mui/material';
+// Card, Radio, FormControl 등 불필요한 임포트 제거
 import { Controller, Control, useFormContext } from 'react-hook-form';
 import { FullHintFormData } from '../HintSettingsTab';
 import { useRef, ChangeEvent } from 'react';
@@ -47,6 +55,7 @@ export default function ArCameraForm({ control }: ArCameraFormProps) {
     <Box>
       <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>AR 이미지 등록 (1개)</Typography>
       
+      {/* AR 이미지 등록 UI (기존과 동일) */}
       <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, p: 2, mb: 2 }}>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 1 }}>
           <Button 
@@ -90,6 +99,27 @@ export default function ArCameraForm({ control }: ArCameraFormProps) {
             sx={{ width: 150, height: 150, mt: 1, border: '1px solid', borderColor: 'grey.300' }}
           />
         )}
+      </Box>
+      
+      {/* [수정 2. 정답 입력 UI 단순화] */}
+      {/* Card, RadioGroup, bonusCoin 필드 모두 제거 */}
+      <Box sx={{ mt: 2 }}>
+        <Controller
+          name="arCamera.answer"
+          control={control}
+          defaultValue=""
+          rules={{ required: '정답을 입력해야 합니다.' }}
+          render={({ field, fieldState: { error } }) => (
+            <TextField 
+              {...field} 
+              label="정답" 
+              fullWidth // fullWidth로 변경
+              required 
+              error={!!error}
+              helperText={error?.message}
+            />
+          )}
+        />
       </Box>
     </Box>
   );
