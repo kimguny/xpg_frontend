@@ -97,7 +97,7 @@ export default function TopImageForm({ control }: TopImageFormProps) {
         )}
       </Box>
       
-      <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>텍스트 박스</Typography>
+      <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>텍스트 박스 (최대 3개)</Typography>
       {fields.map((item, index) => (
         <Box key={item.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
           <Controller
@@ -111,7 +111,11 @@ export default function TopImageForm({ control }: TopImageFormProps) {
           </IconButton>
         </Box>
       ))}
-      <Button startIcon={<AddCircleOutline />} onClick={() => append({ text: '' })}>
+      <Button 
+        startIcon={<AddCircleOutline />} 
+        onClick={() => append({ text: '' })}
+        disabled={fields.length >= 3}
+      >
         텍스트 박스 추가
       </Button>
     </Box>
