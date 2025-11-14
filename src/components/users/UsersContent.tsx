@@ -19,6 +19,7 @@ import {
   CircularProgress,
   Menu,
   MenuItem,
+  Pagination, // [수정 1] Pagination 임포트
 } from '@mui/material';
 import { Search, ArrowDropDown } from '@mui/icons-material';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
@@ -104,10 +105,23 @@ export default function UsersContent() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
 
-  const { data: usersData, isLoading } = useGetUsers({ q: searchQuery, sort: sort });
+  // [수정 2] page state 및 size 상수 추가
+  const [page, setPage] = useState(1);
+  const [rowsPerPage] = useState(20);
+
+  // [수정 3] useGetUsers 훅에 page, size 파라미터 전달
+  const { data: usersData, isLoading } = useGetUsers({ 
+    q: searchQuery, 
+    sort: sort,
+    page: page,
+    size: rowsPerPage,
+  });
   const deleteUserMutation = useDeleteUser();
   
   const users = usersData?.items || [];
+  // [수정 4] 총 페이지 수 계산
+  const totalUsers = usersData?.total || 0;
+  const pageCount = Math.ceil(totalUsers / rowsPerPage);
 
   const handleDeleteClick = (userId: string) => {
     setSelectedUserId(userId);
@@ -135,7 +149,9 @@ export default function UsersContent() {
     setSelectedUserForPoints(null);
   };
 
+  // [수정 5] 검색 시 1페이지로 리셋
   const handleSearch = () => {
+    setPage(1); 
     setSearchQuery(searchInput);
   };
 
@@ -145,9 +161,17 @@ export default function UsersContent() {
   const handleSortMenuClose = () => {
     setAnchorEl(null);
   };
+  
+  // [수정 6] 정렬 시 1페이지로 리셋
   const handleSortSelect = (sortValue: string) => {
+    setPage(1);
     setSort(sortValue);
     handleSortMenuClose();
+  };
+
+  // [수정 7] 페이지 변경 핸들러 추가
+  const handlePageChange = (event: React.ChangeEvent<unknown>, value: number) => {
+    setPage(value);
   };
 
   return (
@@ -226,6 +250,19 @@ export default function UsersContent() {
           </Table>
         </TableContainer>
       </Card>
+
+      {/* [수정 8] 페이지네이션 UI 추가 */}
+      {pageCount > 1 && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+          <Pagination
+            count={pageCount}
+            page={page}
+            onChange={handlePageChange}
+            color="primary"
+          />
+        </Box>
+      )}
+
       <ConfirmDialog
         open={dialogOpen}
         onClose={handleDialogClose}
