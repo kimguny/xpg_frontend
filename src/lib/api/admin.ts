@@ -555,7 +555,7 @@ export interface GetNfcTagsParams {
   category?: string;
   active?: boolean;
   search?: string;
-  // (참고: 백엔드 API에 정렬(sort) 기능은 아직 없습니다.)
+  sort?: string;
 }
 
 /**

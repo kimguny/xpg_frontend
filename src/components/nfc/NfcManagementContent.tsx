@@ -1,5 +1,3 @@
-// src/components/nfc/NfcManagementContent.tsx
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -12,55 +10,56 @@ import {
   Menu,
   MenuItem,
   CircularProgress,
+  Pagination,
 } from '@mui/material';
 import { Search, ArrowDropDown, ViewList, ViewModule } from '@mui/icons-material';
 import NfcTableView from './NfcTableView';
 import NfcCardView from './NfcCardView';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
-import { useGetNfcTags } from '@/hooks/query/useGetNfcTags'; // [수정]
-import { useDeleteNfcTag } from '@/hooks/mutation/useDeleteNfcTag'; // [수정]
-import { useDebounce } from '@/hooks/useDebounce'; // [수정]
+import { useGetNfcTags } from '@/hooks/query/useGetNfcTags';
+import { useDeleteNfcTag } from '@/hooks/mutation/useDeleteNfcTag';
+import { useDebounce } from '@/hooks/useDebounce';
 
-// (임시 데이터 삭제)
-
-// [수정] 정렬 옵션 (백엔드 API가 현재 정렬을 지원하지 않으므로, 우선순위는 tag_name 고정)
+// [1. 수정] 정렬 옵션 추가 (이름순, 이름역순)
 const sortOptions = {
-  'tag_name,ASC': '이름순',
-  // (추후 백엔드에 정렬 기능 추가 시 여기에 옵션 추가)
+  'tag_name,ASC': '이름순 (가나다)',
+  'tag_name,DESC': '이름 역순 (다나가)',
+  // (참고: 백엔드 API가 'created_at' 정렬을 지원하면 여기에 추가)
+  // 'created_at,DESC': '최신순',
+  // 'created_at,ASC': '오래된순',
 };
 
 export default function NfcManagementContent() {
   const [view, setView] = useState<'table' | 'card'>('table');
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedNfcId, setSelectedNfcId] = useState<string | null>(null); // [수정] ID 타입을 string으로 변경
+  const [selectedNfcId, setSelectedNfcId] = useState<string | null>(null);
 
-  // [수정] API 연동을 위한 state 추가
-  const [searchInput, setSearchInput] = useState(''); // 실시간 입력값
-  const [searchQuery, setSearchQuery] = useState(''); // 디바운스된 검색어
-  const [sort, setSort] = useState('tag_name,ASC'); // (현재는 UI 표시용)
-  const [page, setPage] = useState(1); // (페이지네이션 추후 구현)
+  const [searchInput, setSearchInput] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sort, setSort] = useState('tag_name,ASC'); // 기본 정렬 '이름순'
+  const [page, setPage] = useState(1);
 
-  // [수정] 디바운스 훅 사용
   const debouncedSearchQuery = useDebounce(searchInput, 500);
 
-  // [수정] 검색어가 변경되면 API를 호출하도록 useEffect 추가
   useEffect(() => {
     setSearchQuery(debouncedSearchQuery);
-    setPage(1); // 검색 시 1페이지로 리셋
+    setPage(1);
   }, [debouncedSearchQuery]);
 
-  // [수정] API 훅 호출
+  // [2. 수정] API 훅 호출 시 'sort' 파라미터 전달
   const { data: nfcTagsData, isLoading } = useGetNfcTags({
     search: searchQuery,
     page: page,
     size: 20,
-    // (정렬은 백엔드 구현 후 `sort` state 변수 전달)
+    sort: sort, // 선택된 정렬 옵션을 API에 전달
   });
   const deleteNfcTagMutation = useDeleteNfcTag();
 
   const nfcTags = nfcTagsData?.items || [];
+  const totalItems = nfcTagsData?.total || 0;
+  const pageSize = 20;
+  const pageCount = Math.ceil(totalItems / pageSize);
 
-  // [수정] ID 타입을 string으로 변경
   const handleDeleteClick = (nfcId: string) => {
     setSelectedNfcId(nfcId);
     setDialogOpen(true);
@@ -78,7 +77,6 @@ export default function NfcManagementContent() {
     handleDialogClose();
   };
 
-  // [수정] 정렬 메뉴 핸들러 추가
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
   const handleSortMenuClick = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -89,7 +87,12 @@ export default function NfcManagementContent() {
   };
   const handleSortSelect = (sortValue: string) => {
     setSort(sortValue);
+    setPage(1); // 정렬 시 1페이지로 리셋
     handleSortMenuClose();
+  };
+
+  const handlePageChange = (event: React.ChangeEvent<unknown>, value: number) => {
+    setPage(value);
   };
 
   return (
@@ -122,29 +125,32 @@ export default function NfcManagementContent() {
           >
             <ViewList />
           </Button>
-          {/* [수정] 정렬 버튼 로직 연결 */}
-          <Button
-            variant="outlined"
-            size="small"
-            endIcon={<ArrowDropDown />}
-            sx={{ textTransform: 'none', bgcolor: 'white', ml: 1 }}
-            onClick={handleSortMenuClick}
-          >
-            정렬: {sortOptions[sort as keyof typeof sortOptions]}
-          </Button>
-          <Menu
-            anchorEl={anchorEl}
-            open={open}
-            onClose={handleSortMenuClose}
-          >
-            {Object.entries(sortOptions).map(([value, label]) => (
-              <MenuItem key={value} onClick={() => handleSortSelect(value)}>
-                {label}
-              </MenuItem>
-            ))}
-          </Menu>
+          {/* [3. 수정] 정렬 메뉴 UI 업데이트 (옵션이 2개 이상일 때만 표시) */}
+          {Object.keys(sortOptions).length > 0 && (
+            <>
+              <Button
+                variant="outlined"
+                size="small"
+                endIcon={<ArrowDropDown />}
+                sx={{ textTransform: 'none', bgcolor: 'white', ml: 1 }}
+                onClick={handleSortMenuClick}
+              >
+                정렬: {sortOptions[sort as keyof typeof sortOptions]}
+              </Button>
+              <Menu
+                anchorEl={anchorEl}
+                open={open}
+                onClose={handleSortMenuClose}
+              >
+                {Object.entries(sortOptions).map(([value, label]) => (
+                  <MenuItem key={value} onClick={() => handleSortSelect(value)}>
+                    {label}
+                  </MenuItem>
+                ))}
+              </Menu>
+            </>
+          )}
         </Box>
-        {/* [수정] 검색창 로직 연결 */}
         <TextField
           variant="outlined"
           size="small"
@@ -171,7 +177,20 @@ export default function NfcManagementContent() {
         <NfcCardView data={nfcTags} onDelete={handleDeleteClick} />
       )}
       
-      {/* [수정] 삭제 확인 모달 메시지 변경 */}
+      {/* 페이지네이션 UI */}
+      {pageCount > 1 && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3, pb: 2 }}>
+          <Pagination
+            count={pageCount}
+            page={page}
+            onChange={handlePageChange}
+            color="primary"
+            showFirstButton
+            showLastButton
+          />
+        </Box>
+      )}
+      
       <ConfirmDialog
         open={dialogOpen}
         onClose={handleDialogClose}
