@@ -578,6 +578,7 @@ export interface StoreReward {
   product_desc: string | null;
   image_url: string | null;
   price_coin: number;
+  initial_quantity: number | null; 
   stock_qty: number | null;
   is_active: boolean;
   exposure_order: number | null;
