@@ -216,7 +216,7 @@ export default function RewardManagementContent() {
                 <TableCell sx={{ fontWeight: 600 }}>매장명</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>카테고리</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>필요 포인트</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>총 수량</TableCell>
+                {/* <TableCell sx={{ fontWeight: 600 }}>총 수량</TableCell> */}
                 <TableCell sx={{ fontWeight: 600 }}>잔여 수량</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>재고 상황</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>상태</TableCell>
@@ -236,8 +236,7 @@ export default function RewardManagementContent() {
                     <TableCell>{reward.storeName}</TableCell>
                     <TableCell>{reward.category}</TableCell>
                     <TableCell>{reward.points.toLocaleString()} P</TableCell>
-                    {/* [수정 4] totalQty와 remainingQty를 분리된 값으로 표시 */}
-                    <TableCell>{reward.totalQty}</TableCell>
+                    {/* <TableCell>{reward.totalQty}</TableCell> */}
                     <TableCell>{reward.remainingQty}</TableCell>
                     <TableCell>
                       {reward.statusChip}
