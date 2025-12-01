@@ -23,7 +23,7 @@ import {
 } from '@mui/material';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { useGetContents } from '@/hooks/query/useGetContents'; 
-import { Content, deleteAdminContent, toggleContentStatus } from '@/lib/api/admin';
+import { Content, deleteAdminContent, toggleContentStatus, updateAdminContent, ContentUpdatePayload } from '@/lib/api/admin';
 import { useContentStore } from '@/store/contentStore';
 
 export default function ContentManageList() {
@@ -68,8 +68,28 @@ export default function ContentManageList() {
     },
   });
 
+  const updateContentMutation = useMutation({
+    mutationFn: ({ contentId, payload }: { contentId: string; payload: ContentUpdatePayload }) => 
+      updateAdminContent({ contentId, payload }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminContents'] });
+    },
+    onError: (error) => {
+      console.error("테스트 설정 변경 실패:", error);
+      alert('테스트 설정 변경에 실패했습니다.');
+    },
+  });
+
   const handleStatusToggle = (id: string) => {
     toggleStatusMutation.mutate(id);
+  };
+
+  // [수정 3] 테스트 스위치 핸들러 추가
+  const handleTestToggle = (content: Content) => {
+    updateContentMutation.mutate({
+      contentId: content.id,
+      payload: { is_test: !content.is_test }
+    });
   };
   
   const handleAction = (type: 'edit' | 'copy' | 'delete', content: Content) => {
@@ -117,14 +137,16 @@ export default function ContentManageList() {
                 <TableCell sx={{ fontWeight: 600 }}>스테이지 등록</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>상태</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>서비스 설정</TableCell>
+                {/* [수정 4] 테스트 설정 헤더 추가 */}
+                <TableCell sx={{ fontWeight: 600 }}>테스트 설정</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>관리</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={7} align="center"><CircularProgress /></TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} align="center"><CircularProgress /></TableCell></TableRow>
               ) : contents.length === 0 ? (
-                <TableRow><TableCell colSpan={7} align="center">등록된 콘텐츠가 없습니다.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} align="center">등록된 콘텐츠가 없습니다.</TableCell></TableRow>
               ) : (
                 contents.map((content) => (
                   <TableRow key={content.id} sx={{ '&:hover': { bgcolor: 'grey.50' } }}>
@@ -163,6 +185,21 @@ export default function ContentManageList() {
                         />
                       </Box>
                     </TableCell>
+                    {/* [수정 5] 테스트 설정 스위치 추가 */}
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="body2" color={content.is_test ? 'warning.main' : 'text.secondary'}>
+                          {content.is_test ? 'TEST ON' : 'OFF'}
+                        </Typography>
+                        <Switch
+                          checked={content.is_test}
+                          onChange={() => handleTestToggle(content)}
+                          size="small"
+                          color="warning"
+                          disabled={updateContentMutation.isPending}
+                        />
+                      </Box>
+                    </TableCell>
                     <TableCell>
                       <Box sx={{ display: 'flex', gap: 1 }}>
                         <Button variant="text" size="small" onClick={() => handleAction('edit', content)} sx={{ minWidth: 50 }}>
@@ -189,7 +226,6 @@ export default function ContentManageList() {
       <Dialog open={confirmDialog.open} onClose={() => setConfirmDialog({ open: false, type: null, content: null })}>
         <DialogTitle>콘텐츠 삭제</DialogTitle>
         <DialogContent>
-          {/* 2. 큰따옴표 제거하고 템플릿 리터럴로 수정 */}
           <Typography>
             {`'${confirmDialog.content?.title}' 콘텐츠를 정말 삭제하시겠습니까?`}
           </Typography>

@@ -49,6 +49,7 @@ export interface Content {
   created_at: string;
   is_open: boolean;
   active_stage_count: number;
+  is_test: boolean;
 }
 
 // NfcTag 타입 (NFCTagResponse 스키마 기준)
@@ -158,6 +159,7 @@ export interface ContentUpdatePayload {
   end_at?: string | null;
   stage_count?: number | null;
   is_sequential?: boolean;
+  is_test?: boolean;
 }
 
 /**
