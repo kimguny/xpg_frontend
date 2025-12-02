@@ -17,6 +17,14 @@ export interface Hint {
     udid: string;
     tag_name: string;
   } | null;
+  
+  // [추가] 위치 정보 필드
+  location: {
+    lat: number;
+    lon: number;
+  } | null;
+  radius_m: number | null;
+
   images: {
     url: string;
     alt_text: string | null;
@@ -33,6 +41,10 @@ export interface HintCreatePayload {
   failure_cooldown_sec?: number;
   reward_coin?: number;
   nfc_id?: string | null;
+  
+  // [추가] 생성 Payload
+  location?: { lat: number; lon: number } | null;
+  radius_m?: number | null;
 }
 
 export interface HintUpdatePayload {
@@ -43,6 +55,10 @@ export interface HintUpdatePayload {
   failure_cooldown_sec?: number;
   reward_coin?: number;
   nfc_id?: string | null;
+  
+  // [추가] 수정 Payload
+  location?: { lat: number; lon: number } | null;
+  radius_m?: number | null;
 }
 
 // --- Puzzle Interfaces ---

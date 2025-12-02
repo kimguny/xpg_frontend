@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -11,39 +11,50 @@ import {
 } from '@mui/material';
 import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
 
-// 지도 컨테이너 스타일 (기존 sx와 동일하게 맞춤)
 const containerStyle = {
   width: '100%',
   height: '60vh',
   minHeight: '400px',
 };
 
-// 네이버 지도에서 사용했던 초기 중심 좌표
-const initialCenter = {
+// 기본 중심 좌표 (값이 없을 때 사용 - 목포)
+const defaultCenter = {
   lat: 34.8118,
   lng: 126.3920,
 };
 
-// Google Maps API에서 사용할 라이브러리 (필요시 'places' 등 추가)
 const libraries: ('places' | 'drawing' | 'geometry' | 'visualization')[] = [];
 
-// Props 인터페이스는 기존과 동일
 interface MapDialogProps {
   open: boolean;
   onClose: () => void;
-  onLocationSelect: (location: { lat: number; lng: number }) => void;
+  
+  // [기존 유지] 기존 컴포넌트 호환용 (객체 전달)
+  onLocationSelect?: (location: { lat: number; lng: number }) => void;
+
+  // [신규 추가] HintSettingsTab 등에서 사용 (개별 인자 전달)
+  onSelect?: (lat: number, lng: number) => void;
+  
+  // [신규 추가] 수정 모드일 때 초기 마커 위치
+  initialLat?: number;
+  initialLng?: number;
 }
 
-export default function MapDialog({ open, onClose, onLocationSelect }: MapDialogProps) {
-  // 마커 위치 상태 (기존과 동일)
-  const [markerPosition, setMarkerPosition] = useState<{ lat: number; lng: number } | null>(null);
+export default function MapDialog({ 
+  open, 
+  onClose, 
+  onLocationSelect, 
+  onSelect, 
+  initialLat, 
+  initialLng 
+}: MapDialogProps) {
   
-  // 지도 인스턴스 참조 (리사이징을 위해)
+  const [markerPosition, setMarkerPosition] = useState<{ lat: number; lng: number } | null>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
 
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY;
 
-  const { isLoaded, loadError } = useJsApiLoader({
+  const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: apiKey || "",
     libraries: libraries,
@@ -51,7 +62,31 @@ export default function MapDialog({ open, onClose, onLocationSelect }: MapDialog
     region: 'KR',
   });
 
-  // 2. 지도 클릭 핸들러
+  // [로직 추가] 다이얼로그가 열리거나 초기값이 바뀔 때 마커/중심 설정
+  useEffect(() => {
+    if (open) {
+      // 1. 초기 위치값이 있는 경우 (수정 모드)
+      if (initialLat && initialLng) {
+        const initialPos = { lat: initialLat, lng: initialLng };
+        setMarkerPosition(initialPos);
+        
+        // 지도가 이미 로드되어 있다면 중심 이동
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.panTo(initialPos);
+          mapInstanceRef.current.setZoom(17); // 상세 위치 확인을 위해 줌 인
+        }
+      } 
+      // 2. 초기 위치값이 없는 경우 (신규 등록 모드 - 기존 동작 유지)
+      else {
+        setMarkerPosition(null);
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.setCenter(defaultCenter);
+          mapInstanceRef.current.setZoom(15);
+        }
+      }
+    }
+  }, [open, initialLat, initialLng]);
+
   const handleMapClick = (e: google.maps.MapMouseEvent) => {
     if (e.latLng) {
       const newPos = {
@@ -62,57 +97,65 @@ export default function MapDialog({ open, onClose, onLocationSelect }: MapDialog
     }
   };
 
-  // 3. 지도 로드 시 인스턴스 저장
   const onMapLoad = (map: google.maps.Map) => {
     mapInstanceRef.current = map;
-    map.setCenter(initialCenter); // 로드 완료 후 중앙 설정
+    // 로드 시점에 초기값이 있으면 그곳으로, 없으면 기본값으로
+    if (initialLat && initialLng) {
+      map.setCenter({ lat: initialLat, lng: initialLng });
+    } else {
+      map.setCenter(defaultCenter);
+    }
   };
 
-  // 4. 지도 언마운트 시 인스턴스 정리
   const onMapUnmount = () => {
     mapInstanceRef.current = null;
   };
 
-  // 5. 다이얼로그가 완전히 열린 후 지도 리사이즈 (중요)
-  // (기존 Naver Map 코드와 동일한 원리)
+  // 리사이즈 트리거 (다이얼로그 렌더링 이슈 방지)
   const handleResize = () => {
     if (isLoaded && mapInstanceRef.current) {
       setTimeout(() => {
         if (mapInstanceRef.current) {
           google.maps.event.trigger(mapInstanceRef.current, 'resize');
-          mapInstanceRef.current.setCenter(initialCenter);
+          // 리사이즈 후 중심 재설정 (마커가 있으면 마커로, 없으면 초기값/기본값)
+          const center = markerPosition || (initialLat && initialLng ? { lat: initialLat, lng: initialLng } : defaultCenter);
+          mapInstanceRef.current.setCenter(center);
         }
-      }, 300); // 300ms 지연 (기존과 동일)
+      }, 300);
     }
   };
 
-  // 6. 적용하기 핸들러 (기존과 동일)
   const handleApply = () => {
     if (markerPosition) {
-      onLocationSelect(markerPosition);
+      // 1. 기존 방식 지원 (onLocationSelect가 있으면 호출)
+      if (onLocationSelect) {
+        onLocationSelect(markerPosition);
+      }
+      
+      // 2. 신규 방식 지원 (onSelect가 있으면 호출)
+      if (onSelect) {
+        onSelect(markerPosition.lat, markerPosition.lng);
+      }
     }
-    setMarkerPosition(null); // 상태 초기화
     onClose();
   };
 
-  // 7. 취소 핸들러 (상태 초기화 추가)
   const handleClose = () => {
-    setMarkerPosition(null); // 상태 초기화
+    setMarkerPosition(null);
     onClose();
   };
 
-  // 8. 로딩 및 에러 처리
   const renderMapContent = () => {
     if (!apiKey) {
       return (
         <Box sx={containerStyle}>
-          지도를 불러오는 중 오류가 발생했습니다. API 키를 확인해 주세요.
+          지도를 불러오는 중 오류가 발생했습니다. 환경변수(NEXT_PUBLIC_GOOGLE_MAPS_KEY)를 확인해 주세요.
         </Box>
       );
     }
     if (!isLoaded) {
       return (
-        <Box sx={{ ...containerStyle, backgroundColor: '#e5e3df' }}>
+        <Box sx={{ ...containerStyle, backgroundColor: '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           지도 로딩 중...
         </Box>
       );
@@ -120,13 +163,16 @@ export default function MapDialog({ open, onClose, onLocationSelect }: MapDialog
     return (
       <GoogleMap
         mapContainerStyle={containerStyle}
-        center={initialCenter}
+        center={defaultCenter} // 초기 로드용, 실제는 onLoad/useEffect에서 제어
         zoom={15}
         onLoad={onMapLoad}
         onUnmount={onMapUnmount}
         onClick={handleMapClick}
+        options={{
+          streetViewControl: false,
+          mapTypeControl: false,
+        }}
       >
-        {/* markerPosition 상태에 따라 마커를 선언적으로 렌더링 */}
         {markerPosition && (
           <Marker position={markerPosition} />
         )}
@@ -141,12 +187,15 @@ export default function MapDialog({ open, onClose, onLocationSelect }: MapDialog
       fullWidth
       maxWidth="md"
       TransitionProps={{
-        onEntered: handleResize, // 다이얼로그가 열린 후 리사이즈 실행
+        onEntered: handleResize,
       }}
     >
       <DialogTitle>지도에서 위치 선택</DialogTitle>
       <DialogContent sx={{ pt: 2 }}>
         {renderMapContent()}
+        <Box sx={{ mt: 1, color: 'text.secondary', fontSize: '0.875rem' }}>
+          * 지도를 클릭하여 정답 위치를 선택하세요.
+        </Box>
       </DialogContent>
       <DialogActions>
         <Button onClick={handleClose}>취소</Button>

@@ -22,21 +22,27 @@ import {
   DialogActions,
   LinearProgress,
   Autocomplete,
-  CircularProgress
+  CircularProgress,
+  Stack,           // [추가] UI 레이아웃용
+  InputAdornment   // [추가] 입력 필드 단위 표시용
 } from '@mui/material';
 import { useForm, SubmitHandler, Controller, FormProvider } from 'react-hook-form';
 import { useQueryClient } from '@tanstack/react-query'; 
 import { useCreateHint } from '@/hooks/mutation/useCreateHint';
 import { useDeleteHint } from '@/hooks/mutation/useDeleteHint'; 
 import { useUpdateHint } from '@/hooks/mutation/useUpdateHint'; 
-import { Delete as DeleteIcon, Edit as EditIcon, Close as CloseIcon } from '@mui/icons-material';
+import { Delete as DeleteIcon, Edit as EditIcon, Close as CloseIcon, Map as MapIcon } from '@mui/icons-material';
 import { 
-  HintCreatePayload, 
+  HintCreatePayload,
+  HintUpdatePayload, // [추가] 타입 안전성을 위해 import 
   Hint,
   NfcTag, 
 } from '@/lib/api/admin';
 import { useGetNfcTags } from '@/hooks/query/useGetNfcTags';
 import { useDebounce } from '@/hooks/useDebounce';
+
+// [추가] MapDialog import
+import MapDialog from '@/components/common/MapDialog';
 
 import CardSwipeForm from './hint-presets/CardSwipeForm';
 import TopImageForm from './hint-presets/TopImageForm';
@@ -53,6 +59,13 @@ export type FullHintFormData = {
   preset: 'cardSwipe' | 'topImage' | 'middleImage' | 'timeAttack' | 'arCamera';
   nfc_option: NfcTag | null; 
   reward_coin: number | string;
+  
+  // [추가] 위치 정보 필드 (입력 편의를 위해 string으로 관리 후 전송 시 변환)
+  use_location: boolean;
+  latitude: string;
+  longitude: string;
+  radius_m: string;
+
   cardSwipe: { 
     cards: { 
       title: string; 
@@ -62,7 +75,6 @@ export type FullHintFormData = {
   };
   topImage: { imageUrl: string; textBlocks: { text: string }[] };
   middleImage: { topText: string; mediaUrl: string; bottomText: string };
-  // [수정 1] retryCooldown 필드 추가
   timeAttack: { 
     timeLimit: string; 
     bottomText: string; 
@@ -75,16 +87,34 @@ export type FullHintFormData = {
 };
 
 function convertHintToFormData(hint: Hint): FullHintFormData {
-  const { preset, nfc, reward_coin, text_block_1, text_block_2, text_block_3, images, cooldown_sec } = hint;
+  const { 
+    preset, 
+    nfc, 
+    reward_coin, 
+    text_block_1, 
+    text_block_2, 
+    text_block_3, 
+    images, 
+    cooldown_sec,
+    failure_cooldown_sec,
+    location, // [추가] 구조 분해
+    radius_m  // [추가] 구조 분해
+  } = hint;
 
   const defaultData: FullHintFormData = {
     preset: 'cardSwipe', 
     nfc_option: null,
     reward_coin: '',
+    
+    // [추가] 위치 기본값 매핑
+    use_location: !!location, // location 객체가 있으면 true
+    latitude: location ? String(location.lat) : '',
+    longitude: location ? String(location.lon) : '',
+    radius_m: radius_m ? String(radius_m) : '30', // 기본값 30m
+
     cardSwipe: { cards: [{ title: '', text: '', images: [] }] },
     topImage: { imageUrl: '', textBlocks: [{ text: '' }] },
     middleImage: { topText: '', mediaUrl: '', bottomText: '' },
-    // [수정 2] 기본값 설정
     timeAttack: { timeLimit: '', bottomText: '', retryCooldown: '' },
     arCamera: { imageUrl: '', answer: '' },
   };
@@ -123,17 +153,16 @@ function convertHintToFormData(hint: Hint): FullHintFormData {
         formData.middleImage.bottomText = text_block_2 || '';
         break;
       case 'timeAttack':
-        // [수정 3] 데이터 매핑 (text_block_2를 재시도 쿨타임으로 사용)
         formData.timeAttack.timeLimit = String(cooldown_sec || 0);
         formData.timeAttack.bottomText = text_block_1 || '';
-        formData.timeAttack.retryCooldown = text_block_2 || ''; 
+        formData.timeAttack.retryCooldown = String(failure_cooldown_sec || 0); 
         break;
       case 'arCamera':
         formData.arCamera.imageUrl = images[0]?.url || '';
         formData.arCamera.answer = text_block_1 || '';
         break;
       default:
-         formData.preset = 'cardSwipe';
+        formData.preset = 'cardSwipe';
     }
   } catch (e) {
     console.error("Hint to form data conversion failed. Falling back to default.", e, hint);
@@ -152,6 +181,9 @@ function convertHintToFormData(hint: Hint): FullHintFormData {
 export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps) {
   
   const [editingHint, setEditingHint] = useState<Hint | null>(null);
+  
+  // [추가] 지도 다이얼로그 상태
+  const [isMapOpen, setIsMapOpen] = useState(false);
 
   const queryClient = useQueryClient();
   const createHintMutation = useCreateHint(stageId);
@@ -172,10 +204,16 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
     preset: 'cardSwipe',
     nfc_option: null, 
     reward_coin: '',
+    
+    // [추가] 위치 기본값
+    use_location: false,
+    latitude: '',
+    longitude: '',
+    radius_m: '30',
+
     cardSwipe: { cards: [{ title: '', text: '', images: [] }] },
     topImage: { imageUrl: '', textBlocks: [{ text: '' }] },
     middleImage: { topText: '', mediaUrl: '', bottomText: '' },
-    // [수정 4] 기본값 추가
     timeAttack: { timeLimit: '', bottomText: '', retryCooldown: '' },
     arCamera: { imageUrl: '', answer: '' },
   };
@@ -184,8 +222,9 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
     defaultValues: defaultFormValues,
   });
 
-  const { control, handleSubmit, watch, reset } = methods;
+  const { control, handleSubmit, watch, setValue, reset } = methods;
   const selectedPreset = watch('preset');
+  const useLocation = watch('use_location'); // 위치 사용 여부 감시
 
   const handleStartEdit = (hint: Hint) => {
     const formData = convertHintToFormData(hint);
@@ -204,10 +243,18 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
     setNfcSearchInput(''); 
   };
 
+  // [추가] 지도에서 위치 선택 시 콜백
+  const handleMapSelect = (lat: number, lng: number) => {
+    setValue('latitude', String(lat));
+    setValue('longitude', String(lng));
+    setIsMapOpen(false);
+  };
+
   const onSubmit: SubmitHandler<FullHintFormData> = (data) => {
     let text_blocks: string[] = [];
     let images: { url: string; alt_text?: string; order_no: number }[] = [];
     let cooldown_sec = 0; 
+    let failure_cooldown_sec = 0;
 
     switch (data.preset) {
       case 'cardSwipe':
@@ -233,9 +280,9 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
         }
         break;
       case 'timeAttack':
-        // [수정 5] 데이터 저장 (text_block_2에 재시도 쿨타임 저장)
-        text_blocks = [data.timeAttack.bottomText, data.timeAttack.retryCooldown];
+        text_blocks = [data.timeAttack.bottomText];
         cooldown_sec = Number(data.timeAttack.timeLimit) || 0;
+        failure_cooldown_sec = Number(data.timeAttack.retryCooldown) || 0;
         break;
       case 'arCamera':
         text_blocks = [data.arCamera.answer];
@@ -245,20 +292,42 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
         break;
     }
 
-    const commonPayload = {
+    // [추가] 위치 정보 페이로드 구성
+    let location = null;
+    let radius_m = null;
+    if (data.use_location && data.latitude && data.longitude) {
+      location = {
+        lat: parseFloat(data.latitude),
+        lon: parseFloat(data.longitude),
+      };
+      radius_m = parseInt(data.radius_m) || 30;
+    }
+
+    // [수정] 타입 명시: commonPayload는 HintCreatePayload 구조를 따름 (any 사용 X)
+    const commonPayload: Omit<HintCreatePayload, 'order_no'> = {
       preset: data.preset,
       reward_coin: Number(data.reward_coin) || 0,
       nfc_id: data.preset === 'arCamera' ? null : (data.nfc_option?.id || null), 
       text_blocks: text_blocks.filter(t => t && t !== '|'), 
       images: images.filter(img => img.url), 
       cooldown_sec: cooldown_sec,
+      failure_cooldown_sec: failure_cooldown_sec,
+      
+      // 위치 정보 할당
+      location: location,
+      radius_m: radius_m,
     };
     
     if (editingHint) {
+      // 수정 시 Payload 타입 맞춤
+      const updatePayload: HintUpdatePayload = {
+        ...commonPayload,
+      };
+
       updateHintMutation.mutate({
         hintId: editingHint.id,
         stageId: stageId!,
-        payload: commonPayload
+        payload: updatePayload
       }, {
         onSuccess: () => {
           handleCancelEdit(); 
@@ -270,6 +339,7 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
       });
 
     } else {
+      // 생성 시 Payload 타입 맞춤
       const createPayload: HintCreatePayload = {
         ...commonPayload, 
         order_no: (hints?.length || 0) + 1, 
@@ -328,8 +398,11 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
 
       {renderPresetForm()}
       
-      <Box sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 2, mt: 3 }}>
-        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>공통 설정</Typography>
+      <Divider sx={{ my: 3 }} />
+
+      {/* 2. 해금 조건 설정 (NFC & GPS) */}
+      <Box sx={{ pt: 2 }}>
+        <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>2. 해금 조건 (정답) 설정</Typography>
         
         {selectedPreset !== 'arCamera' && (
           <Controller
@@ -358,8 +431,9 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
                 renderInput={(params) => (
                   <TextField
                     {...params}
-                    label="연계 NFC (검색)"
+                    label="연계 NFC (선택)"
                     placeholder="태그명 또는 UDID로 검색..."
+                    helperText="NFC 태그를 설정하면 태깅 시 힌트가 해금됩니다."
                     InputProps={{
                       ...params.InputProps,
                       endAdornment: (
@@ -389,6 +463,72 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
           />
         )}
 
+        {/* [추가] GPS 위치 설정 섹션 */}
+        <Box sx={{ mb: 2, p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, flexGrow: 1 }}>
+              GPS 위치 인증
+            </Typography>
+            <Controller
+              name="use_location"
+              control={control}
+              render={({ field }) => (
+                <FormControlLabel
+                  control={<Radio checked={field.value} onClick={() => field.onChange(!field.value)} />}
+                  label="사용"
+                  sx={{ m: 0 }}
+                />
+              )}
+            />
+          </Box>
+
+          {useLocation && (
+            <Stack spacing={2}>
+              <Stack direction="row" spacing={1} alignItems="flex-start">
+                <Controller
+                  name="latitude"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField {...field} label="위도" size="small" fullWidth />
+                  )}
+                />
+                <Controller
+                  name="longitude"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField {...field} label="경도" size="small" fullWidth />
+                  )}
+                />
+                <Button 
+                  variant="outlined" 
+                  startIcon={<MapIcon />} 
+                  onClick={() => setIsMapOpen(true)}
+                  sx={{ minWidth: '100px', height: '40px' }}
+                >
+                  지도
+                </Button>
+              </Stack>
+              <Controller
+                name="radius_m"
+                control={control}
+                render={({ field }) => (
+                  <TextField 
+                    {...field} 
+                    label="인증 반경 (m)" 
+                    type="number" 
+                    size="small" 
+                    fullWidth
+                    InputProps={{
+                      endAdornment: <InputAdornment position="end">m</InputAdornment>,
+                    }}
+                    helperText="해당 위치 반경 내에 진입하면 정답 처리됩니다."
+                  />
+                )}
+              />
+            </Stack>
+          )}
+        </Box>
+
         <Controller 
           name="reward_coin" 
           control={control} 
@@ -398,6 +538,7 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
               type="number" 
               label="클리어 보상 (코인)" 
               value={field.value || ''}
+              fullWidth
             />
           )} 
         />
@@ -440,7 +581,11 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
             >
               <ListItemText 
                 primary={`${hint.order_no}: ${hint.text_block_1 || hint.preset || '(내용 없음)'}`} 
-                secondary={`프리셋: ${hint.preset} / NFC: ${hint.nfc ? hint.nfc.tag_name : '없음'}`} 
+                secondary={
+                  `프리셋: ${hint.preset} ` +
+                  `/ NFC: ${hint.nfc ? 'O' : 'X'} ` +
+                  `/ GPS: ${hint.location ? 'O' : 'X'}`
+                } 
               />
             </ListItem>
           ))
@@ -503,6 +648,15 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* [추가] MapDialog 렌더링 */}
+      <MapDialog 
+        open={isMapOpen}
+        onClose={() => setIsMapOpen(false)}
+        onSelect={handleMapSelect}
+        initialLat={Number(methods.watch('latitude')) || 34.8118}
+        initialLng={Number(methods.watch('longitude')) || 126.3920}
+      />
     </Box>
   );
 }
