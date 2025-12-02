@@ -1,6 +1,5 @@
 'use client';
 
-// [1.1 Import 추가]
 import { useState } from 'react'; 
 import { 
   Box, 
@@ -10,11 +9,9 @@ import {
   IconButton, 
   FormLabel, 
   FormControl, 
-  CircularProgress, 
   List, 
   ListItem, 
   ListItemText, 
-  // [수정 1.1] Select, MenuItem, InputLabel, FormHelperText 삭제
   RadioGroup, 
   FormControlLabel, 
   Radio, 
@@ -24,22 +21,20 @@ import {
   DialogContent,
   DialogActions,
   LinearProgress,
-  Autocomplete, // [수정 1.2] Autocomplete 추가
+  Autocomplete,
+  CircularProgress
 } from '@mui/material';
 import { useForm, SubmitHandler, Controller, FormProvider } from 'react-hook-form';
-import { useQueryClient } from '@tanstack/react-query'; // [수정 1.3] useQuery 삭제
+import { useQueryClient } from '@tanstack/react-query'; 
 import { useCreateHint } from '@/hooks/mutation/useCreateHint';
 import { useDeleteHint } from '@/hooks/mutation/useDeleteHint'; 
 import { useUpdateHint } from '@/hooks/mutation/useUpdateHint'; 
 import { Delete as DeleteIcon, Edit as EditIcon, Close as CloseIcon } from '@mui/icons-material';
 import { 
   HintCreatePayload, 
-  HintUpdatePayload,
   Hint,
   NfcTag, 
-  // [수정 1.4] getAdminNfcTags 삭제
 } from '@/lib/api/admin';
-// [수정 1.5] 훅 임포트
 import { useGetNfcTags } from '@/hooks/query/useGetNfcTags';
 import { useDebounce } from '@/hooks/useDebounce';
 
@@ -54,10 +49,8 @@ interface HintSettingsTabProps {
   hints: Hint[]; 
 }
 
-// [수정 2. FullHintFormData 타입 수정]
 export type FullHintFormData = {
   preset: 'cardSwipe' | 'topImage' | 'middleImage' | 'timeAttack' | 'arCamera';
-  // nfc_id (string) 대신 nfc_option (객체)을 폼에서 관리
   nfc_option: NfcTag | null; 
   reward_coin: number | string;
   cardSwipe: { 
@@ -69,36 +62,36 @@ export type FullHintFormData = {
   };
   topImage: { imageUrl: string; textBlocks: { text: string }[] };
   middleImage: { topText: string; mediaUrl: string; bottomText: string };
-  timeAttack: { timeLimit: string; bottomText: string };
+  // [수정 1] retryCooldown 필드 추가
+  timeAttack: { 
+    timeLimit: string; 
+    bottomText: string; 
+    retryCooldown: string; 
+  };
   arCamera: { 
     imageUrl: string;
     answer: string;
   };
 };
 
-// [수정 3. 헬퍼 함수 수정]
 function convertHintToFormData(hint: Hint): FullHintFormData {
   const { preset, nfc, reward_coin, text_block_1, text_block_2, text_block_3, images, cooldown_sec } = hint;
 
-  // 폼의 기본 구조
   const defaultData: FullHintFormData = {
     preset: 'cardSwipe', 
-    nfc_option: null, // nfc_id -> nfc_option
+    nfc_option: null,
     reward_coin: '',
     cardSwipe: { cards: [{ title: '', text: '', images: [] }] },
     topImage: { imageUrl: '', textBlocks: [{ text: '' }] },
     middleImage: { topText: '', mediaUrl: '', bottomText: '' },
-    timeAttack: { timeLimit: '', bottomText: '' },
-    arCamera: { 
-      imageUrl: '',
-      answer: '',
-    },
+    // [수정 2] 기본값 설정
+    timeAttack: { timeLimit: '', bottomText: '', retryCooldown: '' },
+    arCamera: { imageUrl: '', answer: '' },
   };
 
   const formData: FullHintFormData = {
     ...defaultData,
     preset: preset as FullHintFormData['preset'],
-    // [수정 3.1] nfc_id 대신 nfc (객체)를 nfc_option에 할당
     nfc_option: hint.nfc ? (hint.nfc as NfcTag) : null,
     reward_coin: reward_coin || 0,
   };
@@ -130,8 +123,10 @@ function convertHintToFormData(hint: Hint): FullHintFormData {
         formData.middleImage.bottomText = text_block_2 || '';
         break;
       case 'timeAttack':
+        // [수정 3] 데이터 매핑 (text_block_2를 재시도 쿨타임으로 사용)
         formData.timeAttack.timeLimit = String(cooldown_sec || 0);
         formData.timeAttack.bottomText = text_block_1 || '';
+        formData.timeAttack.retryCooldown = text_block_2 || ''; 
         break;
       case 'arCamera':
         formData.arCamera.imageUrl = images[0]?.url || '';
@@ -145,7 +140,7 @@ function convertHintToFormData(hint: Hint): FullHintFormData {
     return {
       ...defaultData,
       preset: 'cardSwipe',
-      nfc_option: hint.nfc ? (hint.nfc as NfcTag) : null, // nfc_id -> nfc_option
+      nfc_option: hint.nfc ? (hint.nfc as NfcTag) : null, 
       reward_coin: reward_coin || 0,
     };
   }
@@ -163,33 +158,26 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
   const updateHintMutation = useUpdateHint();
   const deleteHintMutation = useDeleteHint(); 
 
-  // [수정 4. Autocomplete 검색용 state 추가]
   const [nfcSearchInput, setNfcSearchInput] = useState('');
   const debouncedNfcSearch = useDebounce(nfcSearchInput, 300);
 
-  // [수정 5. useQuery -> useGetNfcTags 훅으로 변경]
   const { data: nfcData, isLoading: isLoadingNfcTags } = useGetNfcTags({
     search: debouncedNfcSearch,
     page: 1,
-    size: 20, // 검색 기반으로 20개만 가져오기
+    size: 20,
   });
   const nfcOptions = nfcData?.items || [];
 
-  // [수정 6. defaultValues 수정]
   const defaultFormValues: FullHintFormData = {
     preset: 'cardSwipe',
-    nfc_option: null, // nfc_id -> nfc_option
+    nfc_option: null, 
     reward_coin: '',
-    cardSwipe: { 
-      cards: [{ title: '', text: '', images: [] }] 
-    },
+    cardSwipe: { cards: [{ title: '', text: '', images: [] }] },
     topImage: { imageUrl: '', textBlocks: [{ text: '' }] },
     middleImage: { topText: '', mediaUrl: '', bottomText: '' },
-    timeAttack: { timeLimit: '', bottomText: '' },
-    arCamera: { 
-      imageUrl: '',
-      answer: '',
-    },
+    // [수정 4] 기본값 추가
+    timeAttack: { timeLimit: '', bottomText: '', retryCooldown: '' },
+    arCamera: { imageUrl: '', answer: '' },
   };
 
   const methods = useForm<FullHintFormData>({
@@ -203,7 +191,6 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
     const formData = convertHintToFormData(hint);
     setEditingHint(hint);
     reset(formData); 
-    // [수정 6.1] 수정 시작 시, nfc_option이 있으면 검색 인풋에도 이름 표시
     if (formData.nfc_option) {
       setNfcSearchInput(formData.nfc_option.tag_name);
     } else {
@@ -214,11 +201,9 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
   const handleCancelEdit = () => {
     setEditingHint(null);
     reset(defaultFormValues); 
-    setNfcSearchInput(''); // [수정 6.2] 취소 시 검색 인풋 초기화
+    setNfcSearchInput(''); 
   };
 
-
-  // [수정 7. onSubmit 로직 수정]
   const onSubmit: SubmitHandler<FullHintFormData> = (data) => {
     let text_blocks: string[] = [];
     let images: { url: string; alt_text?: string; order_no: number }[] = [];
@@ -248,13 +233,12 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
         }
         break;
       case 'timeAttack':
-        text_blocks = [data.timeAttack.bottomText];
+        // [수정 5] 데이터 저장 (text_block_2에 재시도 쿨타임 저장)
+        text_blocks = [data.timeAttack.bottomText, data.timeAttack.retryCooldown];
         cooldown_sec = Number(data.timeAttack.timeLimit) || 0;
         break;
       case 'arCamera':
-        text_blocks = [
-          data.arCamera.answer,
-        ];
+        text_blocks = [data.arCamera.answer];
         if (data.arCamera.imageUrl) {
           images = [{ url: data.arCamera.imageUrl, alt_text: 'AR Image', order_no: 1 }];
         }
@@ -264,7 +248,6 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
     const commonPayload = {
       preset: data.preset,
       reward_coin: Number(data.reward_coin) || 0,
-      // [수정 7.1] data.nfc_option.id 에서 nfc_id 추출
       nfc_id: data.preset === 'arCamera' ? null : (data.nfc_option?.id || null), 
       text_blocks: text_blocks.filter(t => t && t !== '|'), 
       images: images.filter(img => img.url), 
@@ -272,7 +255,6 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
     };
     
     if (editingHint) {
-      // --- 수정 모드 ---
       updateHintMutation.mutate({
         hintId: editingHint.id,
         stageId: stageId!,
@@ -288,7 +270,6 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
       });
 
     } else {
-      // --- 생성 모드 ---
       const createPayload: HintCreatePayload = {
         ...commonPayload, 
         order_no: (hints?.length || 0) + 1, 
@@ -313,11 +294,6 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
     }
   };
 
-  // [수정 8] isLoadingNfcTags는 이제 검색 시마다 바뀌므로, 최상위 로딩 제거
-  // if (isLoadingNfcTags) {
-  //   return <CircularProgress />;
-  // }
-  
   const renderPresetForm = () => {
     switch (selectedPreset) {
       case 'cardSwipe':
@@ -335,7 +311,6 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
     }
   }
 
-  // [6. 폼 렌더링 로직 (공통)]
   const renderHintForm = () => (
     <FormProvider {...methods}>
       <FormControl component="fieldset" sx={{ mb: 3 }}>
@@ -357,38 +332,29 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
         <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>공통 설정</Typography>
         
         {selectedPreset !== 'arCamera' && (
-          // [수정 9. <FormControl> <Select> ... </FormControl> 부분을 <Autocomplete>로 교체]
           <Controller
-            name="nfc_option" // nfc_id -> nfc_option
+            name="nfc_option" 
             control={control}
             render={({ field }) => (
               <Autocomplete
                 fullWidth
                 sx={{ mb: 2 }}
-                // field.value는 이제 NfcTag | null 객체입니다.
                 value={field.value}
                 onChange={(event, newValue: NfcTag | null) => {
-                  // 폼(react-hook-form)에 NfcTag 객체 자체를 저장합니다.
                   field.onChange(newValue);
                 }}
-                // 사용자가 입력하는 검색어 관리
                 inputValue={nfcSearchInput}
                 onInputChange={(event, newInputValue) => {
                   setNfcSearchInput(newInputValue);
                 }}
-                // 서버에서 가져온 옵션 목록
                 options={nfcOptions}
-                // 옵션에서 라벨로 표시할 텍스트
                 getOptionLabel={(option) => 
                   `${option.tag_name} (ID: ${option.id.substring(0, 8)}...)`
                 }
-                // 두 옵션이 같은지 비교 (value와 options 비교용)
                 isOptionEqualToValue={(option, value) => 
                   option.id === value.id
                 }
-                // 로딩 상태 표시
                 loading={isLoadingNfcTags}
-                // 렌더링
                 renderInput={(params) => (
                   <TextField
                     {...params}
@@ -407,10 +373,7 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
                     }}
                   />
                 )}
-                // [수정 10. key prop 경고 수정]
-                // key={option.id}를 제거하고, MUI가 제공하는 props만 spread합니다.
                 renderOption={(props, option) => {
-                  // props에서 key를 분리하여 React의 경고를 해결합니다.
                   const { key, ...liProps } = props;
                   return (
                     <Box component="li" key={key} {...liProps}>
@@ -490,7 +453,6 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
       
       <Divider sx={{ my: 4 }} />
       
-      {/* --- 힌트 생성 폼 --- */}
       {!editingHint && (
         <Box>
           <Typography variant="h6" sx={{ mb: 3 }}>새 힌트 추가</Typography>
@@ -508,7 +470,6 @@ export default function HintSettingsTab({ stageId, hints }: HintSettingsTabProps
         </Box>
       )}
 
-      {/* --- 힌트 수정 모달 --- */}
       <Dialog 
         open={!!editingHint} 
         onClose={handleCancelEdit} 

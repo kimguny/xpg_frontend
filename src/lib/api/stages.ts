@@ -10,6 +10,7 @@ export interface Hint {
   text_block_2: string | null;
   text_block_3: string | null;
   cooldown_sec: number;
+  failure_cooldown_sec: number;
   reward_coin: number;
   nfc: {
     id: string;
@@ -29,6 +30,7 @@ export interface HintCreatePayload {
   text_blocks: string[];
   images?: { url: string; alt_text?: string; order_no: number }[] | null;
   cooldown_sec?: number;
+  failure_cooldown_sec?: number;
   reward_coin?: number;
   nfc_id?: string | null;
 }
@@ -38,6 +40,7 @@ export interface HintUpdatePayload {
   text_blocks?: string[];
   images?: { url: string; alt_text?: string; order_no: number }[] | null;
   cooldown_sec?: number;
+  failure_cooldown_sec?: number;
   reward_coin?: number;
   nfc_id?: string | null;
 }
