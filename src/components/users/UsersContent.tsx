@@ -19,14 +19,30 @@ import {
   CircularProgress,
   Menu,
   MenuItem,
-  Pagination, // [수정 1] Pagination 임포트
+  Pagination,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from '@mui/material';
 import { Search, ArrowDropDown } from '@mui/icons-material';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import { User } from '@/lib/api/admin';
 import { useGetUsers } from '@/hooks/query/useGetUsers';
 import { useDeleteUser } from '@/hooks/mutation/useDeleteUser';
+import { useResetAllPoints } from '@/hooks/mutation/useResetAllPoints';
 import PointAdjustModal from './PointAdjustModal';
+
+// [타입 정의] 에러 응답 객체 구조 정의 (any 대체)
+interface ApiErrorResponse {
+  response?: {
+    status: number;
+    data?: {
+      detail?: string;
+    };
+  };
+}
 
 interface RowProps {
   user: User;
@@ -49,7 +65,7 @@ function Row({ user, onDeleteClick, onPointModifyClick }: RowProps) {
         
         <TableCell>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            {user.profile?.points || 0}
+            {(user.profile?.points || 0).toLocaleString()}
           </Box>
         </TableCell>
         
@@ -85,7 +101,7 @@ function Row({ user, onDeleteClick, onPointModifyClick }: RowProps) {
   );
 }
 
-const sortOptions = {
+const sortOptions: Record<string, string> = {
   'created_at,DESC': '최신순',
   'last_active_at,DESC': '날짜순',
   'login_id,ASC': '이름순',
@@ -98,6 +114,10 @@ export default function UsersContent() {
   const [pointModalOpen, setPointModalOpen] = useState(false);
   const [selectedUserForPoints, setSelectedUserForPoints] = useState<User | null>(null);
   
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [adminPassword, setAdminPassword] = useState('');
+  const [resetError, setResetError] = useState<string | null>(null);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [sort, setSort] = useState('created_at,DESC');
   const [searchInput, setSearchInput] = useState('');
@@ -105,21 +125,21 @@ export default function UsersContent() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
 
-  // [수정 2] page state 및 size 상수 추가
   const [page, setPage] = useState(1);
-  const [rowsPerPage] = useState(20);
+  const rowsPerPage = 20;
 
-  // [수정 3] useGetUsers 훅에 page, size 파라미터 전달
+  // Hooks
   const { data: usersData, isLoading } = useGetUsers({ 
     q: searchQuery, 
     sort: sort,
     page: page,
     size: rowsPerPage,
   });
+  
   const deleteUserMutation = useDeleteUser();
+  const resetPointsMutation = useResetAllPoints();
   
   const users = usersData?.items || [];
-  // [수정 4] 총 페이지 수 계산
   const totalUsers = usersData?.total || 0;
   const pageCount = Math.ceil(totalUsers / rowsPerPage);
 
@@ -149,7 +169,6 @@ export default function UsersContent() {
     setSelectedUserForPoints(null);
   };
 
-  // [수정 5] 검색 시 1페이지로 리셋
   const handleSearch = () => {
     setPage(1); 
     setSearchQuery(searchInput);
@@ -162,16 +181,45 @@ export default function UsersContent() {
     setAnchorEl(null);
   };
   
-  // [수정 6] 정렬 시 1페이지로 리셋
   const handleSortSelect = (sortValue: string) => {
     setPage(1);
     setSort(sortValue);
     handleSortMenuClose();
   };
 
-  // [수정 7] 페이지 변경 핸들러 추가
-  const handlePageChange = (event: React.ChangeEvent<unknown>, value: number) => {
+  const handlePageChange = (_: React.ChangeEvent<unknown>, value: number) => {
     setPage(value);
+  };
+
+  const handleResetClick = () => {
+    setAdminPassword('');
+    setResetError(null);
+    setResetDialogOpen(true);
+  };
+
+  const handleResetConfirm = () => {
+    if (!adminPassword) {
+      setResetError("비밀번호를 입력해주세요.");
+      return;
+    }
+    setResetError(null);
+
+    resetPointsMutation.mutate(adminPassword, {
+      onSuccess: (data) => {
+        alert(data.message || "모든 유저의 포인트가 초기화되었습니다.");
+        setResetDialogOpen(false);
+        setAdminPassword('');
+      },
+      onError: (error: unknown) => {
+        // unknown 타입을 ApiErrorResponse로 타입 캐스팅하여 처리
+        const apiError = error as ApiErrorResponse;
+        if (apiError.response?.status === 400) {
+          setResetError("비밀번호가 일치하지 않습니다.");
+        } else {
+          setResetError("초기화 중 오류가 발생했습니다.");
+        }
+      }
+    });
   };
 
   return (
@@ -186,7 +234,7 @@ export default function UsersContent() {
                 sx={{ textTransform: 'none', bgcolor: 'white' }}
                 onClick={handleSortMenuClick}
               >
-                정렬: {sortOptions[sort as keyof typeof sortOptions]}
+                정렬: {sortOptions[sort]}
               </Button>
               <Menu
                 anchorEl={anchorEl}
@@ -200,20 +248,33 @@ export default function UsersContent() {
                 ))}
               </Menu>
           </Box>
-          <TextField 
-            variant="outlined" 
-            size="small" 
-            placeholder="아이디 검색" 
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                handleSearch();
-              }
-            }}
-            InputProps={{ startAdornment: ( <InputAdornment position="start"><Search /></InputAdornment>)}} 
-            sx={{ bgcolor: 'white' }}
-          />
+          
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            <Button 
+              variant="contained" 
+              color="error" 
+              size="small"
+              onClick={handleResetClick}
+              sx={{ fontWeight: 'bold', height: '40px' }}
+            >
+              전체 포인트 리셋
+            </Button>
+
+            <TextField 
+              variant="outlined" 
+              size="small" 
+              placeholder="아이디 검색" 
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleSearch();
+                }
+              }}
+              InputProps={{ startAdornment: ( <InputAdornment position="start"><Search /></InputAdornment>)}} 
+              sx={{ bgcolor: 'white' }}
+            />
+          </Box>
       </Box>
 
       <Card>
@@ -251,7 +312,6 @@ export default function UsersContent() {
         </TableContainer>
       </Card>
 
-      {/* [수정 8] 페이지네이션 UI 추가 */}
       {pageCount > 1 && (
         <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
           <Pagination
@@ -277,6 +337,52 @@ export default function UsersContent() {
         onClose={handleClosePointModal}
         user={selectedUserForPoints}
       />
+
+      <Dialog 
+        open={resetDialogOpen} 
+        onClose={() => !resetPointsMutation.isPending && setResetDialogOpen(false)}
+      >
+        <DialogTitle sx={{ color: 'error.main', fontWeight: 'bold' }}>전체 포인트 리셋</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            모든 회원의 포인트를 0으로 초기화합니다.<br/>
+            현재 잔액만큼 차감 내역이 생성되며, 이 작업은 되돌릴 수 없습니다.<br/><br/>
+            <strong>진행하려면 관리자 비밀번호를 입력하세요.</strong>
+          </DialogContentText>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="관리자 비밀번호"
+            type="password"
+            fullWidth
+            variant="outlined"
+            value={adminPassword}
+            onChange={(e) => setAdminPassword(e.target.value)}
+            error={!!resetError}
+            helperText={resetError}
+            disabled={resetPointsMutation.isPending}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleResetConfirm();
+            }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button 
+            onClick={() => setResetDialogOpen(false)} 
+            disabled={resetPointsMutation.isPending}
+          >
+            취소
+          </Button>
+          <Button 
+            onClick={handleResetConfirm} 
+            color="error" 
+            variant="contained"
+            disabled={resetPointsMutation.isPending}
+          >
+            {resetPointsMutation.isPending ? <CircularProgress size={24} color="inherit"/> : "초기화 실행"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

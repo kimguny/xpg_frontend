@@ -21,6 +21,7 @@ import {
   Celebration,
   CardGiftcard,
   Storefront,
+  Android, // [추가]
 } from '@mui/icons-material';
 
 interface SubMenuItem {
@@ -87,6 +88,12 @@ export default function Sidebar() {
         { name: '매장 등록', path: '/save/stores/register' },
         { name: '매장 관리', path: '/save/stores/manage' },
       ]
+    },
+    // [추가] 앱 버전 관리 메뉴
+    {
+      name: '앱 버전 관리',
+      path: '/save/app-version',
+      icon: <Android />
     },
   ];
 
@@ -161,6 +168,8 @@ export default function Sidebar() {
             } else if (item.name === 'HOME') {
               // 'HOME'은 정확히 일치할 때만 활성화
               isActive = pathname === item.path;
+            } else if (item.name === '앱 버전 관리') { // [추가] 활성화 로직
+               isActive = pathname.startsWith('/save/app-version');
             } else {
               // '콘텐츠', 'NFC', '회원관리'는 startsWith로 활성화
               isActive = pathname.startsWith(item.path);

@@ -99,3 +99,21 @@ export const getMe = async (): Promise<MeResponse> => {
   const response = await apiClient.get<MeResponse>('/me');
   return response.data;
 };
+
+/**
+ * 전체 포인트 리셋 응답 타입
+ */
+export interface ResetPointsResponse {
+  message: string;
+}
+
+/**
+ * 관리자용: 전체 사용자 포인트 리셋 (상쇄 트랜잭션 생성)
+ * @param password 관리자 확인용 비밀번호
+ */
+export const resetAllUserPoints = async (password: string): Promise<ResetPointsResponse> => {
+  const response = await apiClient.post<ResetPointsResponse>('/admin/reset-all-points', { 
+    password 
+  });
+  return response.data;
+};
