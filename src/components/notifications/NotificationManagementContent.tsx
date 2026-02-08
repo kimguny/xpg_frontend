@@ -141,7 +141,7 @@ export default function NotificationManagementContent() {
           startIcon={<Add />}
           onClick={() => router.push('/save/notifications/register')}
         >
-          새로 고침
+          공지사항 등록
         </Button>
       </Box>
 
