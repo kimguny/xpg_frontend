@@ -10,3 +10,4 @@ export * from './stores';
 export * from './rewards';
 export * from './dashboard';
 export * from './uploads';
+export * from './notifications'

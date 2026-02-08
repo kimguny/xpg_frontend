@@ -21,7 +21,8 @@ import {
   Celebration,
   CardGiftcard,
   Storefront,
-  Android, // [추가]
+  Android,
+  Campaign, // 공지사항 아이콘 추가
 } from '@mui/icons-material';
 
 interface SubMenuItem {
@@ -45,6 +46,15 @@ export default function Sidebar() {
       name: 'HOME',
       path: '/save/dashboard',
       icon: <Home />
+    },
+    {
+      name: '공지사항',
+      path: '/save/notifications',
+      icon: <Campaign />,
+      subItems: [
+        { name: '공지사항 등록', path: '/save/notifications/register' },
+        { name: '공지사항 관리', path: '/save/notifications/manage' }
+      ]
     },
     {
       name: '콘텐츠',
@@ -89,7 +99,6 @@ export default function Sidebar() {
         { name: '매장 관리', path: '/save/stores/manage' },
       ]
     },
-    // [추가] 앱 버전 관리 메뉴
     {
       name: '앱 버전 관리',
       path: '/save/app-version',
@@ -98,6 +107,7 @@ export default function Sidebar() {
   ];
 
   const [openMenus, setOpenMenus] = useState<{ [key: string]: boolean }>({
+    '공지사항': pathname.startsWith('/save/notifications'),
     '콘텐츠': pathname.startsWith('/save/content'),
     '이벤트': pathname.startsWith('/save/events'),
     'NFC': pathname.startsWith('/save/nfc'),
@@ -168,10 +178,10 @@ export default function Sidebar() {
             } else if (item.name === 'HOME') {
               // 'HOME'은 정확히 일치할 때만 활성화
               isActive = pathname === item.path;
-            } else if (item.name === '앱 버전 관리') { // [추가] 활성화 로직
+            } else if (item.name === '앱 버전 관리') {
                isActive = pathname.startsWith('/save/app-version');
             } else {
-              // '콘텐츠', 'NFC', '회원관리'는 startsWith로 활성화
+              // '공지사항', '콘텐츠', 'NFC', '회원관리'는 startsWith로 활성화
               isActive = pathname.startsWith(item.path);
             }
             
@@ -179,7 +189,7 @@ export default function Sidebar() {
               <Box key={item.name}>
                 <ListItemButton
                   onClick={() => handleMenuClick(item)}
-                  selected={isActive} // [수정] 활성화 로직 적용
+                  selected={isActive}
                   sx={{
                     borderRadius: 2,
                     mb: 0.5,
@@ -205,7 +215,7 @@ export default function Sidebar() {
                       primary={item.name}
                       primaryTypographyProps={{
                         fontSize: '0.95rem',
-                        fontWeight: isActive ? 600 : 400 // [수정] 활성화 로직 적용
+                        fontWeight: isActive ? 600 : 400
                       }}
                     />
                     {item.subItems && (
