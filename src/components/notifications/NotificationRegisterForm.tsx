@@ -266,8 +266,12 @@ export default function NotificationRegisterForm({ mode, notificationId }: Notif
             variant="outlined"
             size="large"
             onClick={() => {
-              setValue('is_draft', true);
-              handleSubmit(onSubmit)();
+              // 포커스 해제하여 달력 값 확정
+              (document.activeElement as HTMLElement)?.blur();
+              setTimeout(() => {
+                setValue('is_draft', true);
+                handleSubmit(onSubmit)();
+              }, 100);
             }}
             disabled={isLoading}
           >
@@ -284,8 +288,12 @@ export default function NotificationRegisterForm({ mode, notificationId }: Notif
             variant="contained"
             size="large"
             onClick={() => {
-              setValue('is_draft', false);
-              handleSubmit(onSubmit)();
+              // 포커스 해제하여 달력 값 확정
+              (document.activeElement as HTMLElement)?.blur();
+              setTimeout(() => {
+                setValue('is_draft', false);
+                handleSubmit(onSubmit)();
+              }, 100);
             }}
             disabled={isLoading}
           >
