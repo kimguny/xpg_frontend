@@ -68,7 +68,13 @@ export default function NotificationRegisterForm({ mode, notificationId }: Notif
       const formatDateTime = (dateString: string) => {
         try {
           const date = new Date(dateString);
-          return date.toISOString().slice(0, 16); // YYYY-MM-DDTHH:mm
+          // 로컬 시간으로 변환 (datetime-local input은 로컬 시간 사용)
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          const hours = String(date.getHours()).padStart(2, '0');
+          const minutes = String(date.getMinutes()).padStart(2, '0');
+          return `${year}-${month}-${day}T${hours}:${minutes}`;
         } catch (e) {
           return '';
         }
@@ -256,23 +262,17 @@ export default function NotificationRegisterForm({ mode, notificationId }: Notif
         </Card>
 
         <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mt: 4 }}>
-          <Controller
-            name="is_draft"
-            control={control}
-            render={({ field }) => (
-              <Button
-                variant="outlined"
-                size="large"
-                onClick={() => {
-                  field.onChange(true);
-                  handleSubmit(onSubmit)();
-                }}
-                disabled={isLoading}
-              >
-                임시 저장
-              </Button>
-            )}
-          />
+          <Button
+            variant="outlined"
+            size="large"
+            onClick={() => {
+              setValue('is_draft', true);
+              handleSubmit(onSubmit)();
+            }}
+            disabled={isLoading}
+          >
+            임시 저장
+          </Button>
           <Button
             variant="outlined"
             size="large"
@@ -281,9 +281,12 @@ export default function NotificationRegisterForm({ mode, notificationId }: Notif
             취소
           </Button>
           <Button
-            type="submit"
             variant="contained"
             size="large"
+            onClick={() => {
+              setValue('is_draft', false);
+              handleSubmit(onSubmit)();
+            }}
             disabled={isLoading}
           >
             {isLoading ? '저장 중...' : buttonText}
